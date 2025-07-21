@@ -6,6 +6,7 @@ from scipy import optimize
 from functools import partial
 from pathlib import Path
 import os
+from importlib.metadata import version
 
 import gnssrefl.gps as g
 import gnssrefl.phase_functions as qp
@@ -103,8 +104,9 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
     """
 
     print("WARNING: This is the EXPERIMENTAL phase estimation command.")
-    print("         Results may differ from the standard 'phase' command.")
-    print("         Use for research and testing purposes only.")
+    print("         Code is untested and likely to produce terrible results.")
+    print("         DO NOT use for production analysis or published results.")
+    print("         For research and algorithm development only.")
     
     compute_lsp = True # used to be an optional input
     if len(station) != 4:
@@ -162,7 +164,30 @@ def main():
     quickphase(**args)
 
 
-def test_func_new_experimental(x, a, b, rh_apriori, freq):
+def create_phase_header(station):
+    """
+    Generate header for phase output files with version information.
+    
+    Parameters
+    ----------
+    station : str
+        4-character station identifier
+        
+    Returns
+    -------
+    str
+        Multi-line header string for phase output files
+    """
+    versionNumber = 'v' + str(version('gnssrefl')) + '-EXPERIMENTAL'
+    tem = ' station ' + station + ' https://github.com/kristinemlarson/gnssrefl ' + versionNumber + '\n'
+    line2 = ' EXPERIMENTAL PHASE PROCESSING - Code is untested and likely to produce terrible results \n'
+    line3 = ' Year DOY Hour   Phase   Nv  Azimuth  Sat  Ampl emin emax  DelT aprioriRH  freq estRH  pk2noise LSPAmp\n'
+    line4 = ' (1)  (2)  (3)    (4)   (5)    (6)    (7)  (8)  (9)  (10)  (11)   (12)     (13)  (14)    (15)    (16)'
+    all = tem + line2 + line3 + line4
+    return all
+
+
+def interferometric_model(x, a, b, rh_apriori, freq):
     """
     Sine wave model for GNSS-IR interferometric pattern fitting.
     
@@ -248,7 +273,7 @@ def phase_tracks_experimental(station, year, doy, snr_type, fr_list, e1, e2, pel
         print('No SNR file on this day.')
         pass
     else:
-        header = "Year DOY Hour   Phase   Nv  Azimuth  Sat  Ampl emin emax  DelT aprioriRH  freq estRH  pk2noise LSPAmp\n(1)  (2)  (3)    (4)   (5)    (6)    (7)  (8)  (9)  (10)  (11)   (12)     (13)  (14)    (15)    (16)"
+        header = create_phase_header(station)
         output_path = FileManagement(station, FileTypes.phase_file, year, doy).get_file_path()
         if extension:
             output_path = output_path.parent / extension / output_path.name
@@ -315,7 +340,7 @@ def phase_tracks_experimental(station, year, doy, snr_type, fr_list, e1, e2, pel
                                 y_data = y
                                 
                                 # Fit theoretical interferometric model
-                                test_function_apriori = partial(test_func_new_experimental, rh_apriori=rh_apriori, freq=freq)
+                                test_function_apriori = partial(interferometric_model, rh_apriori=rh_apriori, freq=freq)
                                 params, params_covariance = optimize.curve_fit(test_function_apriori, x_data, y_data, p0=[2, 2])
 
                                 # Convert phase to degrees and apply constraints
