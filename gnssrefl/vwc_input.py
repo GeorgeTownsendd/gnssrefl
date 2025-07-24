@@ -152,7 +152,7 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
         satellite_list = l2c_sat
 
     # Use general function for apriori filename
-    apriori_path_f = get_apriori_filename(station, fr)
+    apriori_path_f = get_apriori_filename(station, fr, extension)
 
 
     # window out frequency 20
@@ -189,6 +189,11 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
     if (len(apriori_array) == 0):
         print('Found no results - perhaps wrong year? or ')
     else:
+        # Create extension subdirectory if needed
+        if extension:
+            apriori_dir = Path(apriori_path_f).parent
+            apriori_dir.mkdir(parents=True, exist_ok=True)
+        
         print('>>>> Apriori RH file written to ', apriori_path_f)
         fout = open(apriori_path_f, 'w+')
         fout.write("{0:s}  \n".format('% apriori RH values used for phase estimation'))

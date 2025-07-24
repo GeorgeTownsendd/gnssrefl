@@ -118,7 +118,7 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
 
     # Check that an apriori file exists for each requested frequency.
     for f in fr_list:
-        ex = qp.apriori_file_exist(station, f)
+        ex = qp.apriori_file_exist(station, f, extension)
         if not ex:
             print(f'No apriori RH file exists for frequency {f}. Please run vwc_input.')
             sys.exit()
@@ -289,7 +289,7 @@ def phase_tracks_experimental(station, year, doy, snr_type, fr_list, e1, e2, pel
 
             for freq in fr_list:
                 # read apriori reflector height results
-                apriori_results = qp.read_apriori_rh(station, freq)
+                apriori_results = qp.read_apriori_rh(station, freq, extension)
 
                 print('Analyzing Frequency ', freq, ' Year ', year, ' Day of Year ', doy)
 

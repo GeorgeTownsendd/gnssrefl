@@ -21,7 +21,7 @@ from gnssrefl.utils import str2bool, read_files_in_dir
 
 xdir = Path(os.environ["REFL_CODE"])
 
-def get_apriori_filename(station: str, freq: int) -> str:
+def get_apriori_filename(station: str, freq: int, extension: str = '') -> str:
     """
     Generate the appropriate apriori RH filename for a given station and frequency.
     
@@ -31,6 +31,8 @@ def get_apriori_filename(station: str, freq: int) -> str:
         4-character station identifier
     freq : int
         GNSS frequency (1=L1, 5=L5, 20=L2C)
+    extension : str, optional
+        Analysis extension for subdirectory organization. Default is ''.
         
     Returns
     -------
@@ -39,12 +41,18 @@ def get_apriori_filename(station: str, freq: int) -> str:
     """
     myxdir = os.environ['REFL_CODE']
     
+    # Base path with optional extension subdirectory
+    if extension:
+        base_path = myxdir + '/input/' + extension + '/'
+    else:
+        base_path = myxdir + '/input/'
+    
     if freq == 1:
-        return myxdir + '/input/' + station + '_phaseRH_L1.txt'
+        return base_path + station + '_phaseRH_L1.txt'
     elif freq == 5:
-        return myxdir + '/input/' + station + '_phaseRH_L5.txt'
+        return base_path + station + '_phaseRH_L5.txt'
     else:  # Default to L2C (freq == 20 or freq == 2)
-        return myxdir + '/input/' + station + '_phaseRH.txt'
+        return base_path + station + '_phaseRH.txt'
 
 def normAmp(amp, basepercent):
     """
@@ -243,7 +251,7 @@ def vwc_plot(station,t_datetime, vwcdata, plot_path,circles):
     print(f"Saving to {plot_path}")
     plt.savefig(plot_path)
 
-def read_apriori_rh(station,fr):
+def read_apriori_rh(station, fr, extension=''):
     """
     read the track dependent a priori reflector heights needed for
     phase & thus soil moisture.
@@ -255,6 +263,9 @@ def read_apriori_rh(station,fr):
 
     fr : int
         frequency (e.g. 1,20)
+        
+    extension : str, optional
+        analysis extension for subdirectory organization. Default is ''.
 
     Returns
     -------
@@ -274,7 +285,7 @@ def read_apriori_rh(station,fr):
         column 7 is maximum azimuth degrees for the quadrant
     """
     result = []
-    apriori_path_f = get_apriori_filename(station, fr)
+    apriori_path_f = get_apriori_filename(station, fr, extension)
 
     if os.path.exists(apriori_path_f):
         result = np.loadtxt(apriori_path_f, comments='%', ndmin=2)
@@ -457,7 +468,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, pele, plot, scre
 
             for freq in fr_list:
             # read apriori reflector height results
-                apriori_results = read_apriori_rh(station,freq)
+                apriori_results = read_apriori_rh(station, freq, extension)
 
                 print('Analyzing Frequency ', freq, ' Year ', year, ' Day of Year ', doy)
 
@@ -906,7 +917,7 @@ def write_avg_phase(station, phase, fr,year,year_end,minvalperday,vxyz,subdir):
         fout.close()
     return tv
 
-def apriori_file_exist(station,fr):
+def apriori_file_exist(station, fr, extension=''):
     """
     reads in the a priori RH results
 
@@ -918,6 +929,9 @@ def apriori_file_exist(station,fr):
     fr : integer
         frequency
         
+    extension : str, optional
+        analysis extension for subdirectory organization. Default is ''.
+        
     Returns
     -------
     boolean as to whether the apriori file exists
@@ -926,7 +940,7 @@ def apriori_file_exist(station,fr):
     # do not have time to use this
     file_manager = FileManagement(station, FileTypes.apriori_rh_file)
     # for l2c
-    apriori_path_f = get_apriori_filename(station, fr)
+    apriori_path_f = get_apriori_filename(station, fr, extension)
     
     return os.path.exists(apriori_path_f) 
 
