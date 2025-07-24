@@ -302,6 +302,8 @@ def test_func_new(x, a, b, rh_apriori,freq):
     """
     if (freq == 20) or (freq == 2):
         freq_least_squares = 2*np.pi*2*rh_apriori/g.constants.wL2
+    elif freq == 5:
+        freq_least_squares = 2*np.pi*2*rh_apriori/g.constants.wL5
     else:
         freq_least_squares = 2*np.pi*2*rh_apriori/g.constants.wL1
 
@@ -328,8 +330,8 @@ def get_vwc_frequency(station: str, extension: str, fr_cmd: str = None):
     """
     # Handle the 'all' case first, which overrides everything else.
     if fr_cmd == 'all':
-        print("Processing all supported frequencies: L1 (1) and L2C (20).")
-        return [1, 20]
+        print("Processing all supported frequencies: L1 (1), L2C (20), and L5 (5).")
+        return [1, 20, 5]
 
     final_fr = None
     # Use command line frequency if provided (and it's not 'all')
@@ -356,8 +358,8 @@ def get_vwc_frequency(station: str, extension: str, fr_cmd: str = None):
             print("No frequency specified. Defaulting to L2C (20).")
 
     # Warn if not using the standard L2C frequency
-    if final_fr not in [1, 20]:
-        print(f"Warning: Only frequencies 1 (L1) and 20 (L2C) are officially supported.")
+    if final_fr not in [1, 20, 5]:
+        print(f"Warning: Only frequencies 1 (L1), 20 (L2C), and 5 (L5) are officially supported.")
     elif final_fr != 20:
         print(f"Warning: Analyzing frequency L1 ({final_fr}). The standard is L2C (20).")
 

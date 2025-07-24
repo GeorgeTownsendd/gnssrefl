@@ -214,6 +214,8 @@ def interferometric_model(x, a, b, rh_apriori, freq):
     """
     if (freq == 20) or (freq == 2):
         wavelength = g.constants.wL2
+    elif freq == 5:
+        wavelength = g.constants.wL5
     else:
         wavelength = g.constants.wL1
     
@@ -307,6 +309,10 @@ def phase_tracks_experimental(station, year, doy, snr_type, fr_list, e1, e2, pel
                     if (freq == 20) and (sat_number not in l2c_list):
                         if screenstats: 
                             print('Asked for L2C but this is not L2C transmitting on this day: ', int(sat_number))
+                        compute_lsp = False
+                    elif (freq == 5) and (sat_number not in l5_sat):
+                        if screenstats:
+                            print('Asked for L5 but this is not L5 transmitting on this day: ', int(sat_number))
                         compute_lsp = False
 
                     if screenstats:
