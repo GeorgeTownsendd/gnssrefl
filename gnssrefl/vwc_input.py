@@ -121,6 +121,11 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
 
     gnssir_results = np.asarray(result_files)
 
+    # Check if we have any gnssir results
+    if gnssir_results.size == 0:
+        print('No gnssir results found for this station and year. You need to run gnssir first.')
+        sys.exit()
+
     # change it to a numpy array
     #gi = np.asarray(gnssir_results)
     # I transpose this because the original code did that.
