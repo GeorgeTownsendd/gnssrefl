@@ -408,11 +408,17 @@ def make_gnssir_input(station: str, lat: float=0, lon: float=0, height: float=0,
     station_dir = outputdir + '/' + station
     if not os.path.isdir(station_dir):
         subprocess.call(['mkdir', station_dir])
-
+        
+    # Create extension subdirectory (default if no extension)
     if len(extension) == 0:
-        outputfile = station_dir + '/' + station + '.json'
+        extension_dir = station_dir + '/default'
+        outputfile = extension_dir + '/' + station + '.json'
     else:
-        outputfile = station_dir + '/' + station + '.' + extension + '.json'
+        extension_dir = station_dir + '/' + extension
+        outputfile = extension_dir + '/' + station + '.json'
+        
+    if not os.path.isdir(extension_dir):
+        subprocess.call(['mkdir', extension_dir])
 
     # 4 was the original default.  Totally up to the user. 
     lsp['polyV'] = polyV # polynomial order for DC removal

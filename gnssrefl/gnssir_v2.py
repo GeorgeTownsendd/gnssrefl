@@ -576,11 +576,11 @@ def read_json_file(station, extension,**kwargs):
     if len(extension) == 0:
         useextension = False
         instructions_ext = ''
+        instructions = str(os.environ['REFL_CODE']) + '/input/' + station + '/default/' + station + '.json'
     else:
         useextension = True 
-        instructions_ext = str(os.environ['REFL_CODE']) + '/input/' + station + '/' + station + '.' + extension + '.json'
-
-    instructions = str(os.environ['REFL_CODE']) + '/input/' + station + '/' + station + '.json'
+        instructions_ext = str(os.environ['REFL_CODE']) + '/input/' + station + '/' + extension + '/' + station + '.json'
+        instructions = str(os.environ['REFL_CODE']) + '/input/' + station + '/default/' + station + '.json'
 
     if useextension and not os.path.isfile(instructions_ext):
         print('You asked to use : ', instructions_ext, ' but it does not exist.')

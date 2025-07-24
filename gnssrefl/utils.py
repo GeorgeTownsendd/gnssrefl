@@ -84,7 +84,7 @@ class FileManagement:
         if self.file_type in FileTypes.__dict__.keys():
             files = {FileTypes.apriori_rh_file: self.xdir / "input" / f"{self.station}_phaseRH.txt",
                      FileTypes.daily_avg_phase_results: self.xdir / "Files" / f"{self.station}_phase.txt",
-                     FileTypes.make_json: self.xdir / "input" / self.station / f"{self.station}.json",
+                     FileTypes.make_json: self.xdir / "input" / self.station / "default" / f"{self.station}.json",
                      FileTypes.volumetric_water_content: self.xdir / "Files" / f"{self.station}_vwc.txt"
                      }
 

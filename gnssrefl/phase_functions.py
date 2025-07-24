@@ -32,7 +32,7 @@ def get_apriori_filename(station: str, freq: int, extension: str = '') -> str:
     freq : int
         GNSS frequency (1=L1, 5=L5, 20=L2C)
     extension : str, optional
-        Analysis extension (not used in file path, kept for compatibility). Default is ''.
+        Analysis extension for subdirectory organization. Default is ''.
         
     Returns
     -------
@@ -41,15 +41,18 @@ def get_apriori_filename(station: str, freq: int, extension: str = '') -> str:
     """
     myxdir = os.environ['REFL_CODE']
     
-    # Base path with station subdirectory
-    base_path = myxdir + '/input/' + station + '/'
+    # Base path with station and extension subdirectories
+    if extension:
+        base_path = myxdir + '/input/' + station + '/' + extension + '/'
+    else:
+        base_path = myxdir + '/input/' + station + '/default/'
     
     if freq == 1:
         return base_path + station + '_phaseRH_L1.txt'
     elif freq == 5:
         return base_path + station + '_phaseRH_L5.txt'
-    else:  # Default to L2C (freq == 20 or freq == 2)
-        return base_path + station + '_phaseRH.txt'
+    else:  # L2C (freq == 20 or freq == 2) - renamed from legacy
+        return base_path + station + '_phaseRH_L2.txt'
 
 def normAmp(amp, basepercent):
     """

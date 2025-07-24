@@ -25,8 +25,8 @@ def nmea_apriori_coords(station,llh,sp3):
 
     if sp3 and (not foundcoords):
         # try to get the LLH from json file
-        jfile1  = os.environ['REFL_CODE'] + '/input/' + station.upper() + '/' + station.upper() + '.json'
-        jfile2  = os.environ['REFL_CODE'] + '/input/' + station.lower() + '/' + station.lower() + '.json'
+        jfile1  = os.environ['REFL_CODE'] + '/input/' + station.upper() + '/default/' + station.upper() + '.json'
+        jfile2  = os.environ['REFL_CODE'] + '/input/' + station.lower() + '/default/' + station.lower() + '.json'
         fexists = False
         if os.path.isfile(jfile1):
             jfile = jfile1 ; fexists = True
