@@ -220,9 +220,9 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
     lsp['vwc_min_req_pts_track'] = min_tracks # this is total number of days needed to keep a satellite
 
     if len(extension)==0:
-        instructions = str(os.environ['REFL_CODE']) + '/input/' + station + '.json'
+        instructions = str(os.environ['REFL_CODE']) + '/input/' + station + '/' + station + '.json'
     else:
-        instructions = str(os.environ['REFL_CODE']) + '/input/' + station + '.' + extension + '.json'
+        instructions = str(os.environ['REFL_CODE']) + '/input/' + station + '/' + station + '.' + extension + '.json'
 
     with open(instructions, 'w+') as outfile:
         json.dump(lsp, outfile, indent=4)
