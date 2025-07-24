@@ -9,7 +9,7 @@ from pathlib import Path
 from gnssrefl.gps import l2c_l5_list, l1c_list
 from gnssrefl.utils import read_files_in_dir, FileTypes, FileManagement
 import gnssrefl.gnssir_v2 as guts2
-from gnssrefl.phase_functions import get_vwc_frequency
+from gnssrefl.phase_functions import get_vwc_frequency, get_apriori_filename
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -130,20 +130,24 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
     # four quadrants
     azimuth_list = [0, 90, 180, 270]
 
-    # get the satellites for the requested frequency (20 for now) and most recent year
+    # get the satellites for the requested frequency and most recent year
     if (fr == 1):
         l1_satellite_list = np.arange(1,33)
         satellite_list = l1_satellite_list
 
         # Uncomment to use experimental L1C_list function, for filtering to GPS BLock III
         #satellite_list = l1c_list(year, 365)
-
-        apriori_path_f = myxdir + '/input/' + station + '_phaseRH_L1.txt'
-    else:
+    elif (fr == 5):
+        print('Using L5 satellite list for December 31 on ', year)
+        l2c_sat, l5_sat = l2c_l5_list(year, 365)
+        satellite_list = l5_sat
+    else:  # Default L2C case (fr == 20 or fr == 2)
         print('Using L2C satellite list for December 31 on ', year)
         l2c_sat, l5_sat = l2c_l5_list(year, 365)
         satellite_list = l2c_sat
-        apriori_path_f = myxdir + '/input/' + station + '_phaseRH.txt'
+
+    # Use general function for apriori filename
+    apriori_path_f = get_apriori_filename(station, fr)
 
 
     # window out frequency 20

@@ -21,6 +21,31 @@ from gnssrefl.utils import str2bool, read_files_in_dir
 
 xdir = Path(os.environ["REFL_CODE"])
 
+def get_apriori_filename(station: str, freq: int) -> str:
+    """
+    Generate the appropriate apriori RH filename for a given station and frequency.
+    
+    Parameters
+    ----------
+    station : str
+        4-character station identifier
+    freq : int
+        GNSS frequency (1=L1, 5=L5, 20=L2C)
+        
+    Returns
+    -------
+    str
+        Full path to the apriori RH file
+    """
+    myxdir = os.environ['REFL_CODE']
+    
+    if freq == 1:
+        return myxdir + '/input/' + station + '_phaseRH_L1.txt'
+    elif freq == 5:
+        return myxdir + '/input/' + station + '_phaseRH_L5.txt'
+    else:  # Default to L2C (freq == 20 or freq == 2)
+        return myxdir + '/input/' + station + '_phaseRH.txt'
+
 def normAmp(amp, basepercent):
     """
     emulated amp_normK code from PBO H2O
@@ -249,11 +274,7 @@ def read_apriori_rh(station,fr):
         column 7 is maximum azimuth degrees for the quadrant
     """
     result = []
-    myxdir = os.environ['REFL_CODE']
-    apriori_path_f = myxdir + '/input/' + station + '_phaseRH.txt'
-
-    if (fr == 1):
-        apriori_path_f = myxdir + '/input/' + station + '_phaseRH_L1.txt'
+    apriori_path_f = get_apriori_filename(station, fr)
 
     if os.path.exists(apriori_path_f):
         result = np.loadtxt(apriori_path_f, comments='%', ndmin=2)
@@ -904,11 +925,7 @@ def apriori_file_exist(station,fr):
     # do not have time to use this
     file_manager = FileManagement(station, FileTypes.apriori_rh_file)
     # for l2c
-    myxdir = os.environ['REFL_CODE']
-    apriori_path_f = myxdir + '/input/' + station + '_phaseRH.txt'
-
-    if (fr == 1):
-        apriori_path_f = myxdir + '/input/' + station + '_phaseRH_L1.txt'
+    apriori_path_f = get_apriori_filename(station, fr)
     
     return os.path.exists(apriori_path_f) 
 
