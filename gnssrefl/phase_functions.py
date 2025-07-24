@@ -349,17 +349,17 @@ def get_vwc_frequency(station: str, extension: str, fr_cmd: str = None):
     list
         A list of frequencies to be used for analysis.
     """
-    # Handle the 'all' case first, which overrides everything else.
+    # Handle the 'all' case first, which overrides everything else. For backwards compatibility.
     if fr_cmd == 'all':
-        print("Processing all supported frequencies: L1 (1), L2C (20), and L5 (5).")
+        print("Selected all supported frequencies: L1 (1), L2C (20), and L5 (5).")
         return [1, 20, 5]
 
-    final_fr = None
+    selected_frequency = None
     # Use command line frequency if provided (and it's not 'all')
     if fr_cmd is not None:
         try:
-            final_fr = int(fr_cmd)
-            print(f"Using frequency from command line: {final_fr}")
+            selected_frequency = int(fr_cmd)
+            print(f"Using frequency from command line: {selected_frequency}")
         except ValueError:
             print(f"Error: Invalid frequency '{fr_cmd}'. Must be an integer or 'all'.")
             sys.exit()
@@ -367,25 +367,26 @@ def get_vwc_frequency(station: str, extension: str, fr_cmd: str = None):
         # Otherwise, try to read from the json file
         lsp = gnssir.read_json_file(station, extension, noexit=True)
         if 'freqs' in lsp and lsp.get('freqs'):
-            if len(lsp['freqs']) == 1:
-                final_fr = lsp['freqs'][0]
-                print(f"Frequency read from JSON file: {final_fr}")
+            if len(lsp['freqs']) == 1: # Only support single freq values in json file for now
+                selected_frequency = lsp['freqs'][0]
+                print(f"Frequency read from JSON file: {selected_frequency}")
             else:
                 print("Error: 'freqs' in JSON must be a list with a single value. Exiting.")
                 sys.exit()
         else:
             # Default to L2C if not specified anywhere
-            final_fr = 20
-            print("No frequency specified. Defaulting to L2C (20).")
+            selected_frequency = 20
+            print("No frequency specified by command on in JSON. Defaulting to L2C (20).")
 
     # Warn if not using the standard L2C frequency
-    if final_fr not in [1, 20, 5]:
-        print(f"Warning: Only frequencies 1 (L1), 20 (L2C), and 5 (L5) are officially supported.")
-    elif final_fr != 20:
-        print(f"Warning: Analyzing frequency L1 ({final_fr}). The standard is L2C (20).")
+    if selected_frequency in [1, 20, 5]:
+        if selected_frequency != 20:
+            print(f"Warning: Selected experimental frequency ({selected_frequency}). The standard is L2C (20).")
+    else:
+        print(f"Warning: Selected frequency ({selected_frequency}) is not recognized.")
 
     # Always return a list
-    return [final_fr]
+    return [selected_frequency]
 
 def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, pele, plot, screenstats, compute_lsp,gzip, extension=''):
     """
