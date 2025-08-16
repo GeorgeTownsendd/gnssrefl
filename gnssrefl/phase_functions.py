@@ -1150,7 +1150,7 @@ def apriori_file_exist(station, fr, extension=''):
         frequency
         
     extension : str, optional
-        analysis extension for finding files
+        analysis extension for finding files, default is ''
         
     Returns
     -------
@@ -1313,7 +1313,7 @@ def help_debug(rt,xdir, station):
     #    debug.close()
 
 
-def load_avg_phase(station,fr,bin_hours=24):
+def load_avg_phase(station,fr,bin_hours=24,extension=''):
     """
     loads a previously computed averaged phase solution with matching temporal resolution.
     this is NOT the same as the multi-track phase results.
@@ -1328,6 +1328,8 @@ def load_avg_phase(station,fr,bin_hours=24):
     bin_hours : int, optional
         time bin size in hours (1,2,3,4,6,8,12,24). Default is 24 (daily).
         Only compares against files with exact same temporal resolution.
+    extension : str, optional
+        analysis extension for finding files, default is ''
 
     Returns
     -------
@@ -1345,7 +1347,7 @@ def load_avg_phase(station,fr,bin_hours=24):
     avg_exist = False
 
     # Use FileManagement for consistent phase file paths
-    file_manager = FileManagement(station, 'daily_avg_phase_results')
+    file_manager = FileManagement(station, 'daily_avg_phase_results', extension=extension)
     base_path = file_manager.get_file_path().parent
     
     # Handle frequency-specific naming convention to match write_avg_phase output

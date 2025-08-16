@@ -202,7 +202,7 @@ def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool
         matplt.close ('all')# we do not want the plots to come to the screen for the daily average
 
     # load past VWC analysis  for QC (exact same temporal resolution only)
-    avg_exist, avg_date, avg_phase = qp.load_avg_phase(station,freq,bin_hours)
+    avg_exist, avg_date, avg_phase = qp.load_avg_phase(station,freq,bin_hours,extension)
 
     # pick up all the phase data. unwrapped phase is stored in the results variable
     data_exist, year_sat_phase, doy, hr, phase, azdata, ssat, rh, amp_lsp,amp_ls,ap_rh, results = \
