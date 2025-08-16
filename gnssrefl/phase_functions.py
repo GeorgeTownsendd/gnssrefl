@@ -1313,9 +1313,9 @@ def help_debug(rt,xdir, station):
     #    debug.close()
 
 
-def load_avg_phase(station,fr):
+def load_avg_phase(station,fr,bin_hours=24):
     """
-    loads a previously computed daily average phase solution.
+    loads a previously computed averaged phase solution with matching temporal resolution.
     this is NOT the same as the multi-track phase results.
     This file is now stored in station subdirectory in $REFL_CODE/Files/
 
@@ -1325,6 +1325,9 @@ def load_avg_phase(station,fr):
         4 character station ID, lowercase
     fr : int
         frequency
+    bin_hours : int, optional
+        time bin size in hours (1,2,3,4,6,8,12,24). Default is 24 (daily).
+        Only compares against files with exact same temporal resolution.
 
     Returns
     -------
@@ -1333,7 +1336,7 @@ def load_avg_phase(station,fr):
     avg_date : list of floats
         fractional year, i.e. year + doy/365.25
     avg_phase : list of floats
-        average phase for a given day
+        average phase for the given temporal resolution
 
     """
 
@@ -1343,11 +1346,19 @@ def load_avg_phase(station,fr):
 
     # Use FileManagement for consistent phase file paths
     file_manager = FileManagement(station, 'daily_avg_phase_results')
-    xfile = file_manager.get_file_path()
+    base_path = file_manager.get_file_path().parent
     
-    # Handle L1 frequency naming convention
+    # Handle frequency-specific naming convention to match write_avg_phase output
+    # Only compare against exact same temporal resolution (no fallback)
     if fr == 1:
-        xfile = xfile.parent / f"{station}_phase_L1.txt"
+        xfile = base_path / f"{station}_phase_L1_{bin_hours}hr.txt"
+    elif fr == 5:
+        xfile = base_path / f"{station}_phase_L5_{bin_hours}hr.txt"
+    elif fr == 20:
+        xfile = base_path / f"{station}_phase_L2_{bin_hours}hr.txt"
+    else:
+        # Fallback to default FileManagement path
+        xfile = file_manager.get_file_path()
 
     if os.path.exists(xfile):
         result = np.loadtxt(xfile, comments='%')
@@ -1441,7 +1452,8 @@ def load_sat_phase(station, year, year_end, freq, extension = ''):
 
 
 def set_parameters(station, minvalperday,tmin,tmax,min_req_pts_track,fr, year, year_end,
-                   subdir,plt,auto_removal,warning_value,extension):
+                   subdir,plt,auto_removal,warning_value,extension,
+                   bin_hours=None, minvalperbin=None, bin_offset=None):
     """
     the goal of this code is to pick up the relevant parameters used in vwc.
 
@@ -1540,13 +1552,38 @@ def set_parameters(station, minvalperday,tmin,tmax,min_req_pts_track,fr, year, y
         if 'vwc_minvalperday' in lsp:
             minvalperday = lsp['vwc_minvalperday']
         else:
-            minvalperday = 10
+            minvalperday = None  # Keep as None to indicate deprecated parameter not used
 
     if warning_value is None:    
         if 'vwc_warning_value' in lsp:
             warning_value = lsp['vwc_warning_value']
         else:
             warning_value = 5.5
+
+    # Read subdaily binning parameters with CLI precedence
+    if bin_hours is None:
+        if 'vwc_bin_hours' in lsp:
+            bin_hours = lsp['vwc_bin_hours']
+        else:
+            bin_hours = 24
+    
+    if bin_offset is None:
+        if 'vwc_bin_offset' in lsp:
+            bin_offset = lsp['vwc_bin_offset']
+        else:
+            bin_offset = 0
+    
+    if minvalperbin is None:
+        if 'vwc_minvalperbin' in lsp:
+            minvalperbin = lsp['vwc_minvalperbin']
+        else:
+            # For backwards compatibility: if using daily binning (24 hours), fall back to minvalperday
+            if bin_hours == 24:
+                minvalperbin = minvalperday
+                if minvalperday != 10:  # Only warn if minvalperday was explicitly set to non-default
+                    print("Warning: minvalperday is deprecated for bin_hours=24. Use minvalperbin instead.")
+            else:
+                minvalperbin = 10
 
 
     # not using extension
@@ -1589,14 +1626,27 @@ def set_parameters(station, minvalperday,tmin,tmax,min_req_pts_track,fr, year, y
     if not plt:
         print('no plots will come to screen. Will only be saved.')
 
-    print('minvalperday', minvalperday)
-    print('tmin/tmax',  tmin, tmax )
-    print('min_req_tracks', min_req_pts_track)
-    print('warning value', warning_value)
-    print('extension value', extension)
+    # Print all VWC parameters using exact variable names
+    print('=== VWC Configuration ===')
+    print(f'vwc_min_soil_texture: {tmin:.2f}')
+    print(f'vwc_max_soil_texture: {tmax:.2f}')
+    print(f'vwc_min_req_pts_track: {min_req_pts_track}')
+    print(f'vwc_warning_value: {warning_value:.1f}')
+    print(f'vwc_min_norm_amp: {min_norm_amp:.1f}')
+    
+    print('=== Time Binning ===')
+    print(f'vwc_bin_hours: {bin_hours}')
+    print(f'vwc_bin_offset: {bin_offset}') 
+    print(f'vwc_minvalperbin: {minvalperbin}')
+    if minvalperday is not None and bin_hours == 24:
+        print(f'vwc_minvalperday: {minvalperday} (deprecated - use vwc_minvalperbin)')
+    
+    if extension:
+        print(f'extension: {extension}')
 
     return minvalperday, tmin, tmax, min_req_pts_track, freq, year_end, subdir, \
-            plt, remove_bad_tracks, warning_value, min_norm_amp, plot_legend,circles, extension
+            plt, remove_bad_tracks, warning_value, min_norm_amp, plot_legend,circles, extension, \
+            bin_hours, minvalperbin, bin_offset
 
 def write_all_phase(v,fname):
     """
@@ -1732,7 +1782,7 @@ def kinda_qc(satellite, rhtrack,meanaztrack,nvalstrack, amin,amax, y, t, new_pha
         keepit=False
 
         # figure out intersection with "good" results
-        inter, id1, id2 = np.intersect1d(avg_date, satdate, assume_unique=True, return_indices=True)
+        inter, id1, id2 = np.intersect1d(avg_date, satdate, return_indices=True)
         aa = avg_phase[id1]
         bb = satphase[id2]
         if len(aa) > 0:

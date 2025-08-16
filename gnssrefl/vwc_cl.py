@@ -170,34 +170,28 @@ def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool
     # Get the single frequency from the list
     fr = fr_list[0]
 
-    # Set defaults and validate subdaily binning parameters
-    if bin_hours is None:
-        bin_hours = 24  # Default to daily binning for backwards compatibility
-    
-    valid_bin_hours = [1, 2, 3, 4, 6, 8, 12, 24]
-    if bin_hours not in valid_bin_hours:
-        print(f"Error: bin_hours must be one of {valid_bin_hours}, got {bin_hours}")
-        sys.exit()
-    
-    if bin_offset is None:
-        bin_offset = 0
-    
-    if bin_offset < 0 or bin_offset >= bin_hours:
-        print(f"Error: bin_offset must be 0 <= offset < bin_hours ({bin_hours}), got {bin_offset}")
-        sys.exit()
-    
-    if minvalperbin is None:
-        minvalperbin = 10  # Default same as minvalperday
-    
-    # For backwards compatibility: if using daily binning (24 hours), use minvalperday if provided
-    if bin_hours == 24 and minvalperday is not None:
-        minvalperbin = minvalperday
-    
     # pick up the parameters used for this code
     minvalperday, tmin, tmax, min_req_pts_track, freq, year_end, subdir, plt, \
-            remove_bad_tracks, warning_value,min_norm_amp,sat_legend,circles,extension = \
+            remove_bad_tracks, warning_value,min_norm_amp,sat_legend,circles,extension, \
+            bin_hours_final, minvalperbin_final, bin_offset_final = \
             qp.set_parameters(station, minvalperday, tmin,tmax, min_req_pts_track, 
-                              fr, year, year_end,subdir,plt, auto_removal,warning_value,extension)
+                              fr, year, year_end,subdir,plt, auto_removal,warning_value,extension,
+                              bin_hours, minvalperbin, bin_offset)
+
+    # Validate subdaily binning parameters (after JSON/CLI precedence resolution)
+    valid_bin_hours = [1, 2, 3, 4, 6, 8, 12, 24]
+    if bin_hours_final not in valid_bin_hours:
+        print(f"Error: bin_hours must be one of {valid_bin_hours}, got {bin_hours_final}")
+        sys.exit()
+    
+    if bin_offset_final < 0 or bin_offset_final >= bin_hours_final:
+        print(f"Error: bin_offset must be 0 <= offset < bin_hours ({bin_hours_final}), got {bin_offset_final}")
+        sys.exit()
+    
+    # Use the final resolved values for all subsequent processing
+    bin_hours = bin_hours_final
+    minvalperbin = minvalperbin_final
+    bin_offset = bin_offset_final
 
     # if you have requested snow filtering
     if snow_filter:
@@ -207,8 +201,8 @@ def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool
         snowfileexists,snow_file = qp.make_snow_filter(station, medf, ReqTracks, year, year_end+1)
         matplt.close ('all')# we do not want the plots to come to the screen for the daily average
 
-    # load past VWC analysis  for QC
-    avg_exist, avg_date, avg_phase = qp.load_avg_phase(station,freq)
+    # load past VWC analysis  for QC (exact same temporal resolution only)
+    avg_exist, avg_date, avg_phase = qp.load_avg_phase(station,freq,bin_hours)
 
     # pick up all the phase data. unwrapped phase is stored in the results variable
     data_exist, year_sat_phase, doy, hr, phase, azdata, ssat, rh, amp_lsp,amp_ls,ap_rh, results = \

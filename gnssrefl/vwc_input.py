@@ -22,6 +22,9 @@ def parse_arguments():
     parser.add_argument("-tmin", default=0.05, help="min soil texture", type=float)
     parser.add_argument("-tmax", default=0.5, help="max soil texture", type=float)
     parser.add_argument("-warning_value", default=5.5, help="warning value, degrees, phaseRMS", type=float)
+    parser.add_argument("-bin_hours", default=None, help="time bin size in hours (1,2,3,4,6,8,12,24). Default is 24 (daily)", type=int)
+    parser.add_argument("-minvalperbin", default=None, help="min number of satellite tracks needed per time bin. Default is 10", type=int)
+    parser.add_argument("-bin_offset", default=None, help="bin timing offset in hours (0 <= offset < bin_hours). Default is 0", type=int)
 
     args = parser.parse_args().__dict__
 
@@ -30,7 +33,8 @@ def parse_arguments():
 
 
 def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, minvalperday : int = 10,
-              extension : str='', tmin : float=0.05, tmax : float=0.5, warning_value :float=5.5 ):
+              extension : str='', tmin : float=0.05, tmax : float=0.5, warning_value :float=5.5,
+              bin_hours: int = None, minvalperbin: int = None, bin_offset: int = None):
     """
     Sets inputs for the estimation of vwc (volumetric water content).  Picks up reflector height (RH) results for a 
     given station and year-year end range and computes the RH mean values and writes them 
@@ -208,6 +212,20 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
     lsp['vwc_max_soil_texture'] = tmax
     lsp['vwc_minvalperday'] = minvalperday # this is how many unique tracks you need on each day 
     lsp['vwc_min_req_pts_track'] = min_tracks # this is total number of days needed to keep a satellite
+    
+    # save subdaily binning parameters with proper fallback handling
+    lsp['vwc_bin_hours'] = bin_hours if bin_hours is not None else 24
+    lsp['vwc_bin_offset'] = bin_offset if bin_offset is not None else 0
+    
+    # Handle minvalperbin with backwards compatibility to minvalperday
+    if minvalperbin is not None:
+        lsp['vwc_minvalperbin'] = minvalperbin
+    else:
+        # For backwards compatibility: if using daily binning (24 hours), fall back to minvalperday
+        if (bin_hours is None or bin_hours == 24):
+            lsp['vwc_minvalperbin'] = minvalperday  # Use minvalperday for daily mode
+        else:
+            lsp['vwc_minvalperbin'] = 10  # Default for subdaily mode
 
     # Use FileManagement to get JSON file path with new directory structure
     json_manager = FileManagement(station, 'make_json', extension=extension)
