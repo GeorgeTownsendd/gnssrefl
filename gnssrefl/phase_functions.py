@@ -46,9 +46,9 @@ def normAmp(amp, basepercent):
 
     return Namp
 
-def daily_phase_plot(station, fr,datetime_dates, tv,xdir,subdir,hires_figs):
+def daily_phase_plot(station, fr,datetime_dates, tv,xdir,subdir,hires_figs,bin_hours=24):
     """
-    makes a plot of daily averaged phase for vwc code
+    makes a plot of daily or subdaily averaged phase for vwc code
 
     Parameters
     ----------
@@ -66,26 +66,39 @@ def daily_phase_plot(station, fr,datetime_dates, tv,xdir,subdir,hires_figs):
         subdirectory in Files
     hires_figs: bool
         whether you want eps instead of png files
+    bin_hours: int, optional
+        time bin size in hours (1,2,3,4,6,8,12,24). Default is 24 (daily)
 
     """
     outdir = Path(xdir) / 'Files' / subdir
     plt.figure(figsize=(10, 6))
     plt.plot(datetime_dates, tv[:, 2], 'b-')
     plt.ylabel('phase (degrees)')
+    
+    # Generate dynamic titles and filenames based on temporal resolution
+    time_desc = "Daily" if bin_hours == 24 else f"{bin_hours}-hour averaged"
+    filename_time_suffix = "daily" if bin_hours == 24 else f"{bin_hours}hr"
+    
     if fr == 1:
-        plt.title(f"Daily L1 Phase Results: {station.upper()}")
+        freq_desc = "L1"
+    elif fr == 2 or fr == 20:
+        freq_desc = "L2"
     elif fr == 5:
-        plt.title(f"Daily L5 Phase Results: {station.upper()}")
+        freq_desc = "L5"
     else:
-        plt.title(f"Daily L2C Phase Results: {station.upper()}")
+        freq_desc = f"freq{fr}"
+    
+    plt.title(f"{time_desc} {freq_desc} Phase Results: {station.upper()}")
+    filename_base = f"{station}_phase{_get_analysis_suffix(fr, bin_hours)}"
+    
     plt.grid()
     plt.gcf().autofmt_xdate()
 
-    # maybe this works.  Maybe not.
+    # Generate plot path with appropriate extension
     if hires_figs:
-        plot_path = f'{outdir}/{station}_daily_phase.eps'
+        plot_path = f'{outdir}/{filename_base}.eps'
     else:
-        plot_path = f'{outdir}/{station}_daily_phase.png'
+        plot_path = f'{outdir}/{filename_base}.png'
     print(f"Saving figure to {plot_path}")
 
     plt.savefig(plot_path)
@@ -546,7 +559,7 @@ def low_pct(amp, basepercent):
 
 
 def convert_phase(station, year, year_end=None, plt2screen=True,fr=20,tmin=0.05,tmax=0.5,polyorder=-99,circles=False,
-        subdir='',hires_figs=False, extension=''):
+        subdir='',hires_figs=False, extension='', bin_hours=24, bin_offset=0):
     """
     Convert GPS phase to VWC. Using Clara Chew's algorithm from 
     Matlab write_vegcorrect_smc.m
@@ -613,12 +626,34 @@ def convert_phase(station, year, year_end=None, plt2screen=True,fr=20,tmin=0.05,
 
     # Use FileManagement for consistent phase file paths
     file_manager = FileManagement(station, 'daily_avg_phase_results', extension=extension)
-    fileout = file_manager.get_file_path()
+    base_fileout = file_manager.get_file_path()
     
-    # Handle L1 frequency naming convention
-    if (fr == 1):
-        fileout = fileout.parent / f"{station}_phase_L1.txt"
-    print(subdir)
+    # File detection logic based on bin_hours parameter
+    fileout = None
+    is_subdaily = False
+    subdaily_bin_hours = None
+    
+    # Generate consistent filename using the same suffix logic
+    suffix = _get_analysis_suffix(fr, bin_hours)
+    fileout = base_fileout.parent / f"{station}_phase{suffix}.txt"
+    
+    if bin_hours < 24:
+        # Subdaily mode: look for specific subdaily file
+        if os.path.exists(fileout):
+            is_subdaily = True
+            subdaily_bin_hours = bin_hours
+            print(f'Found subdaily phase file: {fileout}')
+        else:
+            print(f'No {bin_hours}-hour subdaily phase file found: {fileout}')
+            sys.exit()
+    else:
+        # Daily mode: look for daily file
+        
+        if os.path.exists(fileout):
+            print(f'Found daily phase file: {fileout}')
+        else:
+            print(f'No daily phase file found: {fileout}')
+            sys.exit()
 
     if os.path.exists(fileout):
         avg_phase_results = np.loadtxt(fileout, comments='%')
@@ -628,11 +663,20 @@ def convert_phase(station, year, year_end=None, plt2screen=True,fr=20,tmin=0.05,
     if (len(avg_phase_results) == 0):
         print('Empty results file')
         sys.exit()
+        
+    # Auto-detect file format based on filename
+    if any(f"_{h}hr" in str(fileout) for h in [1,2,3,4,6,8,12]):
+        is_subdaily = True
+        print('Detected subdaily format from filename')
+    else:
+        is_subdaily = False  
+        print('Detected daily format from filename')
 
 
     # get only the years requested - this matters if in previous steps more data was processed
     avg_phase_results_requested = np.array([v for v in avg_phase_results if v[0] in np.arange(year, year_end+1)])
 
+    # Extract columns based on file format (8 vs 9 columns)
     years = avg_phase_results_requested[:, 0]
     doys = avg_phase_results_requested[:, 1]
     ph = avg_phase_results_requested[:, 2]
@@ -640,6 +684,13 @@ def convert_phase(station, year, year_end=None, plt2screen=True,fr=20,tmin=0.05,
     amp = avg_phase_results_requested[:, 4]
     months = avg_phase_results_requested[:, 6]
     days = avg_phase_results_requested[:, 7]
+    
+    # For subdaily files, we have an additional BinStart column
+    if is_subdaily:
+        bin_start_hours = avg_phase_results_requested[:, 8]
+        print(f'Processing {len(avg_phase_results_requested)} subdaily measurements')
+    else:
+        print(f'Processing {len(avg_phase_results_requested)} daily measurements')
 
     t = years + doys/365.25
     tspan = t[-1] - t[0]
@@ -719,8 +770,17 @@ def convert_phase(station, year, year_end=None, plt2screen=True,fr=20,tmin=0.05,
     plt.subplots_adjust(hspace=0.2)
     plt.suptitle(f'Station: {station}', size=16)
 
-    # list comprehension to make datetime objects from year, doy
-    t_datetime = [datetime.strptime(f'{int(yr)} {int(d)}', '%Y %j') for yr, d in zip(years, doys)]
+    # Create datetime objects with hour information for subdaily data  
+    if is_subdaily:
+        from datetime import timedelta
+        t_datetime = []
+        for yr, d, h in zip(years, doys, bin_start_hours):
+            base_dt = datetime.strptime(f'{int(yr)} {int(d)}', '%Y %j')
+            dt_with_hours = base_dt + timedelta(hours=int(h))
+            t_datetime.append(dt_with_hours)
+    else:
+        # Daily data: use existing logic
+        t_datetime = [datetime.strptime(f'{int(yr)} {int(d)}', '%Y %j') for yr, d in zip(years, doys)]
 
     # create subplots: 2 rows 1 column, 1st subplot
     ax = plt.subplot(2, 1, 1)
@@ -774,18 +834,19 @@ def convert_phase(station, year, year_end=None, plt2screen=True,fr=20,tmin=0.05,
 
     outdir = Path(xdir) / 'Files' / subdir
 
+    suffix = _get_analysis_suffix(fr, bin_hours)
     if hires_figs:
-        plot_path = f'{outdir}/{station}_phase_vwc_result.eps'
+        plot_path = f'{outdir}/{station}_phase_vwc_result{suffix}.eps'
     else:
-        plot_path = f'{outdir}/{station}_phase_vwc_result.png'
+        plot_path = f'{outdir}/{station}_phase_vwc_result{suffix}.png'
     print(f"Saving to {plot_path}")
     plt.savefig(plot_path)
 
 
     if hires_figs:
-        plot_path = f'{outdir}/{station}_vol_soil_moisture.eps'
+        plot_path = f'{outdir}/{station}_vol_soil_moisture{suffix}.eps'
     else:
-        plot_path = f'{outdir}/{station}_vol_soil_moisture.png'
+        plot_path = f'{outdir}/{station}_vol_soil_moisture{suffix}.png'
 
     vwc_plot(station,t_datetime, nv, plot_path,circles) 
 
@@ -794,7 +855,11 @@ def convert_phase(station, year, year_end=None, plt2screen=True,fr=20,tmin=0.05,
 
     # Use FileManagement with extension support for consistent directory structure
     file_manager = FileManagement(station, 'volumetric_water_content', extension=extension)
-    vwcfile = file_manager.get_file_path()
+    base_vwcfile = file_manager.get_file_path()
+    
+    # Generate VWC filename using consistent suffix
+    suffix = _get_analysis_suffix(fr, bin_hours) 
+    vwcfile = base_vwcfile.parent / f"{station}_vwc{suffix}.txt"
     print('>>> VWC results being written to ', vwcfile)
     with open(vwcfile, 'w') as w:
         N = len(nv)
@@ -803,7 +868,12 @@ def convert_phase(station, year, year_end=None, plt2screen=True,fr=20,tmin=0.05,
         w.write("% Soil Moisture Results for GNSS Station {0:4s} \n".format(station))
         w.write("% Frequency used: {0} \n".format(freq_name))
         w.write("% {0:s} \n".format('https://github.com/kristinemlarson/gnssrefl'))
-        w.write("% FracYr    Year   DOY   VWC Month Day \n")
+        if is_subdaily:
+            w.write(f"% Subdaily VWC with {subdaily_bin_hours}-hour bins (offset: {bin_offset}h)\n")
+            w.write(_get_bin_schedule_info(subdaily_bin_hours, bin_offset) + "\n")
+            w.write("% FracYr    Year   DOY   VWC Month Day BinStart \n")
+        else:
+            w.write("% FracYr    Year   DOY   VWC Month Day \n")
         for iw in range(0, N):
             whydoys = np.round(365.25 * (t[iw] - years))
 
@@ -815,13 +885,132 @@ def convert_phase(station, year, year_end=None, plt2screen=True,fr=20,tmin=0.05,
             watercontent = nv[iw]
             # we do not allow negative soil moisture in my world.
             if (watercontent> 0 and watercontent < 0.5):
-                w.write(f"{fdate:10.4f} {myyear:4.0f} {mydoy:4.0f} {watercontent:8.3f} {mm:3.0f} {dd:3.0f} \n")
+                if is_subdaily:
+                    bin_start = bin_start_hours[iw]
+                    w.write(f"{fdate:10.4f} {myyear:4.0f} {mydoy:4.0f} {watercontent:8.3f} {mm:3.0f} {dd:3.0f} {bin_start:3.0f} \n")
+                else:
+                    w.write(f"{fdate:10.4f} {myyear:4.0f} {mydoy:4.0f} {watercontent:8.3f} {mm:3.0f} {dd:3.0f} \n")
 
 
-def write_avg_phase(station, phase, fr,year,year_end,minvalperday,vxyz,subdir,extension=''):
+def _get_analysis_suffix(fr, bin_hours=24):
+    """
+    Helper function to generate consistent suffix for all output files
+    
+    Parameters
+    ----------
+    fr : int
+        Frequency (1, 5, 20, etc.)
+    bin_hours : int, optional
+        Time bin size in hours. Default is 24 (daily)
+        
+    Returns
+    -------
+    str
+        Suffix string like "_L1_6hr", "_L5_daily", "_daily" (for L2C daily), etc.
+    """
+    # Generate frequency suffix
+    if fr == 1:
+        freq_suffix = "_L1"
+    elif fr == 2 or fr == 20:
+        freq_suffix = "_L2"  # Both L2 (fr=2) and L2C (fr=20) use L2 carrier
+    elif fr == 5:
+        freq_suffix = "_L5"  
+    else:
+        freq_suffix = f"_freq{fr}"
+    
+    # Generate temporal suffix
+    time_suffix = f"_{bin_hours}hr"
+    
+    return freq_suffix + time_suffix
+
+
+def _get_bin_schedule_info(bin_hours, bin_offset=0):
+    """
+    Helper function to generate bin schedule information strings
+    
+    Parameters
+    ----------
+    bin_hours : int
+        Time bin size in hours
+    bin_offset : int, optional
+        Bin timing offset in hours. Default is 0
+        
+    Returns
+    -------
+    str
+        Bin schedule description line
+    """
+    bins_per_day = 24 // bin_hours
+    schedule_parts = []
+    for i in range(bins_per_day):
+        start_hour = (i * bin_hours + bin_offset) % 24
+        end_hour = ((i + 1) * bin_hours + bin_offset) % 24
+        if end_hour == 0:
+            end_hour = 24
+        schedule_parts.append(f"Bin{i}: {start_hour:02d}-{end_hour:02d}h")
+    return "% Bin schedule: " + "  ".join(schedule_parts)
+
+
+def _process_and_write_bin(fout, tv, requested_year, doy, phase, amp, time_mask, min_required, bin_start_hour=None):
+    """
+    Helper function to process phase data for a time bin and write results
+    
+    Parameters
+    ----------
+    fout : file handle
+        Output file handle
+    tv : numpy array
+        Results array to append to
+    requested_year : int
+        Year being processed
+    doy : int  
+        Day of year being processed
+    phase : numpy array
+        Phase data
+    amp : numpy array
+        Amplitude data
+    time_mask : numpy array
+        Boolean mask for filtering data
+    min_required : int
+        Minimum number of values required
+    bin_start_hour : int, optional
+        Bin start hour for subdaily mode. If None, daily mode is used.
+        
+    Returns
+    -------
+    tv : numpy array
+        Updated results array
+    """
+    ph1 = phase[time_mask]
+    amp1 = amp[time_mask]
+    
+    if len(ph1) >= min_required:
+        # Calculate statistics
+        rph1 = np.round(np.mean(ph1), 2)
+        meanA = np.mean(amp1)
+        rph1_std = np.std(ph1)
+        yy, mm, dd, cyyyy, cdoy, YMD = g.ydoy2useful(requested_year, doy)
+        
+        # Create data entry for tv array and write to file
+        if bin_start_hour is not None:
+            # Subdaily: include bin start hour
+            newl = [requested_year, doy, np.mean(ph1), len(ph1), bin_start_hour]
+            fout.write(f" {requested_year:4.0f} {doy:3.0f} {rph1:6.2f} {rph1_std:6.2f} {meanA:6.3f} {0.0:5.2f}   {mm:2.0f} {dd:2.0f}   {bin_start_hour:2.0f}\n")
+        else:
+            # Daily: existing format
+            newl = [requested_year, doy, np.mean(ph1), len(ph1)]
+            fout.write(f" {requested_year:4.0f} {doy:3.0f} {rph1:6.2f} {rph1_std:6.2f} {meanA:6.3f} {0.0:5.2f}   {mm:2.0f} {dd:2.0f} \n")
+        
+        tv = np.append(tv, [newl], axis=0)
+    
+    return tv
+
+
+def write_avg_phase(station, phase, fr,year,year_end,minvalperday,vxyz,subdir,extension='',
+                   bin_hours=24, minvalperbin=10, bin_offset=0):
 
     """
-    creates output file for average phase results
+    creates output file for average phase results with support for subdaily binning
 
     Parameters
     ----------
@@ -849,6 +1038,15 @@ def write_avg_phase(station, phase, fr,year,year_end,minvalperday,vxyz,subdir,ex
     
     extension : str, optional
         analysis extension for directory organization
+        
+    bin_hours : int, optional
+        time bin size in hours (1,2,3,4,6,8,12,24). Default is 24 (daily)
+        
+    minvalperbin : int, optional  
+        minimum number of satellite tracks needed per time bin. Default is 10
+        
+    bin_offset : int, optional
+        bin timing offset in hours (0 <= offset < bin_hours). Default is 0
 
     Returns
     -------
@@ -857,6 +1055,7 @@ def write_avg_phase(station, phase, fr,year,year_end,minvalperday,vxyz,subdir,ex
         doy  - day of year
         meanph - mean phase value in degrees
         nvals - number of values that went into the average
+        bin_start - bin start hour (only for subdaily mode)
 
     """
     myxdir = os.environ['REFL_CODE']
@@ -867,39 +1066,75 @@ def write_avg_phase(station, phase, fr,year,year_end,minvalperday,vxyz,subdir,ex
     az = vxyz[:, 4] # this is not used
     rh = vxyz[:, 5] # this is not used
     amp = vxyz[:, 6]
-
-    tv = np.empty(shape=[0, 4])
+    hour = vxyz[:, 8] # hour of day, UTC
+    
+    # For subdaily mode, we need an extra column for hour bin
+    if bin_hours < 24:
+        tv = np.empty(shape=[0, 5])  # year, doy, meanph, nvals, hour_bin
+    else:
+        tv = np.empty(shape=[0, 4])  # year, doy, meanph, nvals (backwards compatibility)
 
     # Use FileManagement for consistent phase file paths
     file_manager = FileManagement(station, 'daily_avg_phase_results', extension=extension)
     fileout = file_manager.get_file_path()
     
-    # Handle L1 frequency naming convention
-    if (fr == 1):
-        fileout = fileout.parent / f"{station}_phase_L1.txt"
-
-    print('Daily averaged phases will be written to : ', fileout)
+    # Dynamic filename generation using consistent suffix
+    suffix = _get_analysis_suffix(fr, bin_hours)
+    fileout = fileout.parent / f"{station}_phase{suffix}.txt"
+    
+    if bin_hours < 24:
+        print(f'{bin_hours}-hour averaged phases will be written to : ', fileout)
+    else:
+        print('Daily averaged phases will be written to : ', fileout)
     with open(fileout, 'w') as fout:
-        # Year DOY Ph Phsig NormA MM DD
-          #            2012   1  10.00   2.60  0.962  0.00    1  1
-        fout.write("% Year DOY   Ph    Phsig NormA  empty  Mon Day \n")
+        # Write frequency information
+        if fr == 1:
+            freq_name = "L1"
+        elif fr == 2 or fr == 20:
+            freq_name = "L2"
+        elif fr == 5:
+            freq_name = "L5"  
+        else:
+            freq_name = f"freq{fr}"
+        fout.write(f"% {freq_name} phase results for station {station.upper()}\n")
+        
+        # Write header based on mode
+        if bin_hours < 24:
+            # Subdaily mode: add HourBin column and bin schedule info
+            fout.write(f"% Subdaily phase averaging with {bin_hours}-hour bins (offset: {bin_offset}h)\n")
+            fout.write(_get_bin_schedule_info(bin_hours, bin_offset) + "\n")
+            fout.write("% Year DOY   Ph    Phsig NormA  empty  Mon Day BinStart\n")
+        else:
+            # Daily mode: keep existing header for backwards compatibility  
+            fout.write("% Year DOY   Ph    Phsig NormA  empty  Mon Day \n")
+            
+        # Calculate number of bins per day
+        bins_per_day = 24 // bin_hours
+        
         for requested_year in range(year, year_end + 1):
             for doy in range(1, 367):
-            # put in amplitude criteria to keep out bad L2P results
-                ph1 = phase[(y1 == requested_year) & (d1 == doy) & (phase > -10) & (amp > 0.65)]
-                amp1 = amp[(y1 == requested_year) & (d1 == doy) & (phase > -10) & (amp > 0.65)]
-                if (len(ph1) >= minvalperday):
-                    newl = [requested_year, doy, np.mean(ph1), len(ph1)]
-                # i think you normalize the individual satellites before this step
-                #namp = qp.normAmp(amp1,0.15)
-                    tv = np.append(tv, [newl], axis=0)
-                    rph1 = np.round(np.mean(ph1), 2)
-                    meanA = np.mean(amp1)
-                    rph1_std = np.std(ph1)
-                    yy, mm, dd, cyyyy, cdoy, YMD = g.ydoy2useful(requested_year, doy)
-                    fout.write(f" {requested_year:4.0f} {doy:3.0f} {rph1:6.2f} {rph1_std:6.2f} {meanA:6.3f} {0.0:5.2f}   {mm:2.0f} {dd:2.0f} \n")
+                if bin_hours < 24:
+                    # Subdaily binning: process each time bin separately
+                    for bin_idx in range(bins_per_day):
+                        # Calculate bin boundaries with offset
+                        bin_start = (bin_idx * bin_hours + bin_offset) % 24
+                        bin_end = ((bin_idx + 1) * bin_hours + bin_offset) % 24
+                        
+                        # Handle midnight wraparound
+                        if bin_end <= bin_start:  # bin crosses midnight
+                            hour_mask = (hour >= bin_start) | (hour < bin_end)
+                        else:
+                            hour_mask = (hour >= bin_start) & (hour < bin_end)
+                        
+                        # Filter data for this year, doy, and time bin
+                        time_mask = (y1 == requested_year) & (d1 == doy) & (phase > -10) & (amp > 0.65) & hour_mask
+                        bin_start_hour = (bin_idx * bin_hours + bin_offset) % 24
+                        tv = _process_and_write_bin(fout, tv, requested_year, doy, phase, amp, time_mask, minvalperbin, bin_start_hour)
+                else:
+                    # Daily binning: use existing logic for backwards compatibility
+                    time_mask = (y1 == requested_year) & (d1 == doy) & (phase > -10) & (amp > 0.65)
+                    tv = _process_and_write_bin(fout, tv, requested_year, doy, phase, amp, time_mask, minvalperday)
 
-        fout.close()
     return tv
 
 def apriori_file_exist(station, fr, extension=''):

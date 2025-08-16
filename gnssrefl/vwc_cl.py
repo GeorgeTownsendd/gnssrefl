@@ -30,6 +30,9 @@ def parse_arguments():
     parser.add_argument("-min_req_pts_track", default=None, type=int, help="min number of points for a track to be kept. Default is 100")
     parser.add_argument("-polyorder", default=None, type=int, help="override on polynomial order")
     parser.add_argument("-minvalperday", default=None, type=int, help="min number of satellite tracks needed each day. Default is 10")
+    parser.add_argument("-bin_hours", default=None, type=int, help="time bin size in hours (1,2,3,4,6,8,12,24). Default is 24 (daily)")
+    parser.add_argument("-minvalperbin", default=None, type=int, help="min number of satellite tracks needed per time bin. Default is 10")
+    parser.add_argument("-bin_offset", default=None, type=int, help="bin timing offset in hours (0 <= offset < bin_hours). Default is 0")
     parser.add_argument("-snow_filter", default=None, type=str, help="boolean, try to remove snow contaminated points. Default is F")
     parser.add_argument("-subdir", default=None, type=str, help="use non-default subdirectory for output files")
     parser.add_argument("-tmin", default=None, type=float, help="minimum soil texture. Default is 0.05.")
@@ -52,6 +55,7 @@ def parse_arguments():
 
 def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool = True, screenstats: bool = False,
         min_req_pts_track: int = None, polyorder: int = -99, minvalperday: int = None, 
+        bin_hours: int = None, minvalperbin: int = None, bin_offset: int = None,
         snow_filter: bool = False, subdir: str=None, tmin: float=None, tmax: float=None, 
         warning_value : float=None, auto_removal : bool=False, hires_figs : bool=False, advanced : bool=False, extension:str=None ):
     """
@@ -103,6 +107,15 @@ def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool
     minvalperday: integer
         how many phase measurements are needed for each daily measurement
         default is 10
+    bin_hours: integer
+        time bin size in hours for subdaily analysis. Valid values: 1,2,3,4,6,8,12,24
+        default is 24 (daily binning for backwards compatibility)
+    minvalperbin: integer  
+        minimum number of satellite tracks needed per time bin for subdaily analysis
+        default is 10 (same as minvalperday)
+    bin_offset: integer
+        bin timing offset in hours to shift bin boundaries (0 <= offset < bin_hours)
+        default is 0 (bins start at midnight)
     snow_filter: bool
         whether you want to attempt to remove points contaminated by snow
         default is False
@@ -131,6 +144,9 @@ def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool
 
     Daily phase results in a file at $REFL_CODE/Files/<station>/<station>_phase.txt
         with columns: Year DOY Ph Phsig NormA MM DD
+    
+    Subdaily phase results in a file at $REFL_CODE/Files/<station>/<station>_phase_<bin_hours>hr.txt
+        with columns: Year DOY Ph Phsig NormA MM DD HourBin
 
     VWC results in a file at $$REFL_CODE/Files/<station>/<station>_vwc.txt
         with columns: FracYr Year DOY  VWC Month Day
@@ -154,6 +170,29 @@ def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool
     # Get the single frequency from the list
     fr = fr_list[0]
 
+    # Set defaults and validate subdaily binning parameters
+    if bin_hours is None:
+        bin_hours = 24  # Default to daily binning for backwards compatibility
+    
+    valid_bin_hours = [1, 2, 3, 4, 6, 8, 12, 24]
+    if bin_hours not in valid_bin_hours:
+        print(f"Error: bin_hours must be one of {valid_bin_hours}, got {bin_hours}")
+        sys.exit()
+    
+    if bin_offset is None:
+        bin_offset = 0
+    
+    if bin_offset < 0 or bin_offset >= bin_hours:
+        print(f"Error: bin_offset must be 0 <= offset < bin_hours ({bin_hours}), got {bin_offset}")
+        sys.exit()
+    
+    if minvalperbin is None:
+        minvalperbin = 10  # Default same as minvalperday
+    
+    # For backwards compatibility: if using daily binning (24 hours), use minvalperday if provided
+    if bin_hours == 24 and minvalperday is not None:
+        minvalperbin = minvalperday
+    
     # pick up the parameters used for this code
     minvalperday, tmin, tmax, min_req_pts_track, freq, year_end, subdir, plt, \
             remove_bad_tracks, warning_value,min_norm_amp,sat_legend,circles,extension = \
@@ -420,10 +459,11 @@ def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool
     else:
         subprocess.call(['rm','-f', newlist ])
 
-    qp.save_vwc_plot(fig,  f'{xdir}/Files/{subdir}/{station}_az_phase.png')
+    suffix = qp._get_analysis_suffix(fr, bin_hours)
+    qp.save_vwc_plot(fig,  f'{xdir}/Files/{subdir}/{station}_az_phase{suffix}.png')
 
     if advanced:
-        qp.save_vwc_plot(fig2,  f'{xdir}/Files/{subdir}/{station}_az_normamp.png')
+        qp.save_vwc_plot(fig2,  f'{xdir}/Files/{subdir}/{station}_az_normamp{suffix}.png')
 
 
     #Need to Define clearly the stored values in vxyz
@@ -437,21 +477,38 @@ def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool
             matplt.show()
         sys.exit()
     else:
-        # write out daily phase values
-        tv = qp.write_avg_phase(station, phase, fr,year,year_end,minvalperday,vxyz,subdir,extension)
-        print('Number of daily phase measurements ', len(tv))
+        # write out daily or subdaily phase values
+        tv = qp.write_avg_phase(station, phase, fr,year,year_end,minvalperday,vxyz,subdir,extension,
+                               bin_hours=bin_hours, minvalperbin=minvalperbin, bin_offset=bin_offset)
+        if bin_hours < 24:
+            print(f'Number of {bin_hours}-hour phase measurements ', len(tv))
+        else:
+            print('Number of daily phase measurements ', len(tv))
         if len(tv) < 1:
-            print('No results - perhaps minvalperday or min_req_pts_track are too stringent')
+            if bin_hours < 24:
+                print('No results - perhaps minvalperbin or min_req_pts_track are too stringent')
+            else:
+                print('No results - perhaps minvalperday or min_req_pts_track are too stringent')
             sys.exit()
 
-        # make datetime date array
-        datetime_dates = [datetime.strptime(f'{int(yr)} {int(d)}', '%Y %j') for yr, d in zip(tv[:, 0], tv[:, 1])]
+        # make datetime date array based on bin_hours parameter
+        is_subdaily_output = bin_hours < 24
+        
+        if is_subdaily_output:
+            # Create datetime objects with hour info from the 5th column (index 4)
+            datetime_dates = []
+            for row in tv:
+                base_date = datetime.strptime(f'{int(row[0])} {int(row[1])}', '%Y %j')
+                datetime_dates.append(base_date.replace(hour=int(row[4])))
+        else:
+            # Daily data, no hour info
+            datetime_dates = [datetime.strptime(f'{int(yr)} {int(d)}', '%Y %j') for yr, d in zip(tv[:, 0], tv[:, 1])]
 
-        # make a plot of daily phase values
-        qp.daily_phase_plot(station, fr,datetime_dates, tv,xdir,subdir,hires_figs)
+        # make a plot of daily or subdaily phase values
+        qp.daily_phase_plot(station, fr,datetime_dates, tv,xdir,subdir,hires_figs,bin_hours)
 
         # convert daily phase values to volumetric water content
-        qp.convert_phase(station, year, year_end, plt,fr,tmin,tmax,polyorder,circles,subdir,hires_figs, extension)
+        qp.convert_phase(station, year, year_end, plt,fr,tmin,tmax,polyorder,circles,subdir,hires_figs, extension, bin_hours, bin_offset)
 
 
 def main():
