@@ -32,6 +32,48 @@ def parse_arguments():
     return {key: value for key, value in args.items() if value is not None}
 
 
+def classify_elev_bin(emin_obs, emax_obs, elev_bins, ediff=10.0):
+    """
+    Find the smallest elevation bin that fully encompasses the observed range.
+
+    Parameters
+    ----------
+    emin_obs : float
+        Observed minimum elevation angle
+    emax_obs : float
+        Observed maximum elevation angle
+    elev_bins : list of tuples
+        Requested elevation bins [(e1_1, e2_1), (e1_2, e2_2), ...]
+    ediff : float
+        Minimum required arc span in degrees (from gnssir JSON, default 10.0 deg)
+
+    Returns
+    -------
+    tuple or None
+        The matching (e1, e2) bin, or None if:
+        - Arc span is too small (< ediff)
+        - No bin encompasses the observation
+    """
+    # Reject if arc span is too small
+    obs_span = emax_obs - emin_obs
+    if obs_span < ediff:
+        return None
+
+    valid_bins = []
+    for (e1, e2) in elev_bins:
+        # Check if bin fully encompasses observation
+        if emin_obs >= e1 and emax_obs <= e2:
+            bin_size = e2 - e1
+            valid_bins.append(((e1, e2), bin_size))
+
+    if not valid_bins:
+        return None
+
+    # Return the smallest bin that contains the observation
+    valid_bins.sort(key=lambda x: x[1])
+    return valid_bins[0][0]
+
+
 def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, minvalperday : int = 10,
               bin_hours: int = None, minvalperbin: int = 5, bin_offset: int = None,
               extension : str='', tmin : float=0.05, tmax : float=0.5, warning_value :float=5.5 ):
@@ -162,29 +204,61 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
     satellite_gnssir_results = gnssir_results[3][frequency_indices]
     azimuth_gnssir_results = gnssir_results[5][frequency_indices]
 
+    # Also extract observed elevation ranges from gnssir results
+    emin_gnssir_results = gnssir_results[7][frequency_indices]  # eminO
+    emax_gnssir_results = gnssir_results[8][frequency_indices]  # emaxO
+
     # Read JSON to get e1/e2 elevation bounds for apriori file
     lsp = guts2.read_json_file(station, extension)
     e1 = lsp.get('e1', 5.0)
     e2 = lsp.get('e2', 25.0)
 
-    b=0
+    # Read ellist from JSON (list of elevation angle pairs)
+    ellist = lsp.get('ellist', [])
+    if len(ellist) == 0:
+        # No ellist specified, use single e1/e2 range
+        elev_bins = [(e1, e2)]
+    else:
+        # Parse ellist into pairs: [5,12,12,25] -> [(5,12), (12,25)]
+        elev_bins = [(ellist[i], ellist[i+1]) for i in range(0, len(ellist), 2)]
+        print(f'Using elevation bins from ellist: {elev_bins}')
 
+    # Read ediff for minimum arc span (default 10.0 deg)
+    ediff = lsp.get('ediff', 10.0)
+
+    b = 0
     apriori_array = []
+
     for azimuth in azimuth_list:
         azimuth_min = azimuth
         azimuth_max = azimuth + 90
         for satellite in satellite_list:
-            reflector_heights = reflector_height_gnssir_results[(azimuth_gnssir_results > azimuth_min)
-                                                                & (azimuth_gnssir_results < azimuth_max)
-                                                                & (satellite_gnssir_results == satellite)]
-            azimuths = azimuth_gnssir_results[(azimuth_gnssir_results > azimuth_min)
-                                              & (azimuth_gnssir_results < azimuth_max)
-                                              & (satellite_gnssir_results == satellite)]
-            if (len(reflector_heights) > min_tracks):
-                b = b+1
-                average_azimuth = np.mean(azimuths)
-                #print("{0:3.0f} {1:5.2f} {2:2.0f} {3:7.2f} {4:3.0f} {5:3.0f} {6:3.0f} ".format(b, np.mean(reflector_heights), satellite, average_azimuth, len(reflector_heights),azimuth_min,azimuth_max))
-                apriori_array.append([b, np.mean(reflector_heights), satellite, average_azimuth, len(reflector_heights), azimuth_min, azimuth_max, e1, e2])
+            for (bin_e1, bin_e2) in elev_bins:
+                # Filter by satellite and azimuth quadrant
+                mask = ((azimuth_gnssir_results > azimuth_min) &
+                        (azimuth_gnssir_results < azimuth_max) &
+                        (satellite_gnssir_results == satellite))
+
+                # Further filter by elevation bin
+                indices = np.where(mask)[0]
+                bin_indices = []
+                for idx in indices:
+                    obs_bin = classify_elev_bin(emin_gnssir_results[idx],
+                                               emax_gnssir_results[idx],
+                                               elev_bins, ediff)
+                    if obs_bin == (bin_e1, bin_e2):
+                        bin_indices.append(idx)
+
+                if len(bin_indices) > min_tracks:
+                    b = b + 1
+                    reflector_heights = reflector_height_gnssir_results[bin_indices]
+                    azimuths = azimuth_gnssir_results[bin_indices]
+                    average_azimuth = np.mean(azimuths)
+
+                    # Store REQUESTED e1/e2 bounds (not observed)
+                    apriori_array.append([b, np.mean(reflector_heights), satellite,
+                                         average_azimuth, len(reflector_heights),
+                                         azimuth_min, azimuth_max, bin_e1, bin_e2])
 
     # Use FileManagement with frequency and extension support
     file_manager = FileManagement(station, 'apriori_rh_file', frequency=fr, extension=extension)

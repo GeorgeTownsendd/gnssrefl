@@ -530,12 +530,12 @@ def read_apriori_rh(station, fr, extension=''):
 
     Returns
     -------
-    results : numpy array 
+    results : numpy array
         column 1 is just a number (1,2,3,4, etc)
 
         column 2 is RH in meters
 
-        column 3 is satellite number 
+        column 3 is satellite number
 
         column 4 is azimuth of the track (degrees)
 
@@ -544,6 +544,10 @@ def read_apriori_rh(station, fr, extension=''):
         column 6 is minimum azimuth degrees for the quadrant
 
         column 7 is maximum azimuth degrees for the quadrant
+
+        column 8 is minimum elevation angle (e1) for the track
+
+        column 9 is maximum elevation angle (e2) for the track
     """
     result = []
     file_manager = FileManagement(station, 'apriori_rh_file', frequency=fr, extension=extension)
@@ -742,17 +746,25 @@ def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, pele, plot, scre
                 for i in range(0, rows):
                     compute_lsp = True # will set to false for non-compliant L2C requests
                     azim = apriori_results[i, 3]
-                    # this will be the satellite number you are working on 
+                    # this will be the satellite number you are working on
                     sat_number = apriori_results[i, 2]
                     az1 = apriori_results[i, 5]
                     az2 = apriori_results[i, 6]
                     rh_apriori = apriori_results[i, 1]
 
+                    # Use per-track e1/e2 from apriori file if available (columns 7-8)
+                    if apriori_results.shape[1] >= 9:
+                        e1_track = apriori_results[i, 7]
+                        e2_track = apriori_results[i, 8]
+                    else:
+                        e1_track = e1  # fallback to function parameter
+                        e2_track = e2
+
                     # this uses the old way of resolving arcs - but I think that is ok because we only want
                     # one arc per quadrant anyway when doing soil moisture. And soil moisture doesn't really
                     # work unless you have most of the field (i.e. 180 degrees of azimuth)
                     x, y, nv, cf, utctime, avg_azim, avg_edot, edot2, del_t = g.window_data(s1, s2, s5, s6, s7, s8, sat, ele, azi,
-                                                                                        t, edot, freq, az1, az2, e1, e2,
+                                                                                        t, edot, freq, az1, az2, e1_track, e2_track,
                                                                                         sat_number, poly_v, pele, screenstats)
                     if (freq == 20) and (sat_number not in l2c_list) :
                         if screenstats: 
@@ -788,7 +800,11 @@ def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, pele, plot, scre
                     # http://scipy-lectures.org/intro/scipy/auto_examples/plot_curve_fit.html
                         if (nv > min_num_pts) and (max_amp > min_amp):
                             minmax = np.max(x) - np.min(x)
-                            if (minmax > 22) and (del_t < 120):
+                            # Use proportional threshold based on requested elevation range
+                            # For ellist support: require 80% of the requested span
+                            requested_span = e2_track - e1_track
+                            min_span = max(requested_span * 0.8, 5.0)  # at least 80% of span, minimum 5 degrees
+                            if (minmax > min_span) and (del_t < 120):
                                 x_data = np.sin(np.deg2rad(x))  # calculate sine(E)
                                 y_data = y
                                 test_function_apriori = partial(test_func_new, rh_apriori=rh_apriori,freq=freq)
