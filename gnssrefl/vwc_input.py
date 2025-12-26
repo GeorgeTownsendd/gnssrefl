@@ -78,7 +78,7 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
     Returns
     -------
     File with columns
-    index, mean reflector_heights, satellite, average_azimuth, number of reflector heights in average, min azimuth, max azimuth
+    index, mean reflector_heights, satellite, average_azimuth, number of reflector heights in average, min azimuth, max azimuth, e1, e2
 
     Saves to $REFL_CODE/input/<station>_phaseRH.txt
 
@@ -162,6 +162,11 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
     satellite_gnssir_results = gnssir_results[3][frequency_indices]
     azimuth_gnssir_results = gnssir_results[5][frequency_indices]
 
+    # Read JSON to get e1/e2 elevation bounds for apriori file
+    lsp = guts2.read_json_file(station, extension)
+    e1 = lsp.get('e1', 5.0)
+    e2 = lsp.get('e2', 25.0)
+
     b=0
 
     apriori_array = []
@@ -179,7 +184,7 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
                 b = b+1
                 average_azimuth = np.mean(azimuths)
                 #print("{0:3.0f} {1:5.2f} {2:2.0f} {3:7.2f} {4:3.0f} {5:3.0f} {6:3.0f} ".format(b, np.mean(reflector_heights), satellite, average_azimuth, len(reflector_heights),azimuth_min,azimuth_max))
-                apriori_array.append([b, np.mean(reflector_heights), satellite, average_azimuth, len(reflector_heights), azimuth_min, azimuth_max])
+                apriori_array.append([b, np.mean(reflector_heights), satellite, average_azimuth, len(reflector_heights), azimuth_min, azimuth_max, e1, e2])
 
     # Use FileManagement with frequency and extension support
     file_manager = FileManagement(station, 'apriori_rh_file', frequency=fr, extension=extension)
@@ -197,14 +202,14 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
         fout.write("{0:s}  \n".format(l))
         fout.write("{0:s}  \n".format('% tmin 0.05 (default)'))
         fout.write("{0:s}  \n".format('% tmax 0.50 (default)'))
-        fout.write("{0:s}  \n".format('% Track  RefH SatNu MeanAz  Nval   Azimuths '))
-        fout.write("{0:s}  \n".format('%         m   ' ))
+        fout.write("{0:s}  \n".format('% Track  RefH SatNu MeanAz  Nval  azim1 azim2    e1    e2'))
+        fout.write("{0:s}  \n".format('%         m                        deg   deg   deg   deg'))
 
     #with open(apriori_path, 'w') as my_file:
-        np.savetxt(fout, apriori_array, fmt="%3.0f %6.3f %4.0f %7.2f   %4.0f  %3.0f  %3.0f")
+        np.savetxt(fout, apriori_array, fmt="%3.0f %6.3f %4.0f %7.2f   %4.0f  %3.0f  %3.0f  %5.1f %5.1f")
         fout.close()
 
-    lsp = guts2.read_json_file(station, extension)
+    # lsp already read earlier for e1/e2 - reuse it here
 
     # new one for minimum normalized amplitude
     lsp['vwc_min_norm_amp'] = 0.5;
