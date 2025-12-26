@@ -264,6 +264,11 @@ def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool
 
     # using unwrapped phase instead of raw phase
     phase = results[17,:]
+
+    # Extract observed elevation ranges from phase results (for ellist filtering)
+    # Phase file columns 8,9 are emin, emax (observed elevation range)
+    emin_data = results[8, :]  # observed min elevation
+    emax_data = results[9, :]  # observed max elevation
     
     # pick up the tracks you will use to compute phase.  THis was previously
     # created by vwc_input ...
@@ -281,6 +286,14 @@ def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool
 
     atracks = tracks[:, 5]  # min azimuth values
     stracks = tracks[:, 2]  # satellite names
+
+    # Extract elevation bins from apriori file (if present)
+    if tracks.shape[1] >= 9:
+        e1_tracks = tracks[:, 7]  # requested e1 (bin start)
+        e2_tracks = tracks[:, 8]  # requested e2 (bin end)
+    else:
+        e1_tracks = None  # backward compat with old apriori files
+        e2_tracks = None
 
     k = 1
     # define the contents of this variable HERE
@@ -343,27 +356,35 @@ def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool
         amin = az ; amax = az + 90
         # make a quadrant average for plotting purposes
         vquad = np.empty(shape=[0, 4])
-        # pick up the sat list from the actual list
-        satlist = stracks[atracks == amin]
+        # Get indices of tracks in this quadrant from apriori file
+        quad_indices = np.where(atracks == amin)[0]
 
         # set the titles for the two plots
         ax[bx[index],by[index]].set_title(f'Azimuth {str(amin)}-{str(amax)} deg.',fontsize=fs)
         if advanced:
             ax2[bx[index],by[index]].set_title(f'Azimuth {str(amin)}-{str(amax)} deg.',fontsize=fs)
 
-        for satellite in satlist:
+        for track_idx in quad_indices:
+            satellite = stracks[track_idx]
+            e1_bin = e1_tracks[track_idx] if e1_tracks is not None else None
+            e2_bin = e2_tracks[track_idx] if e2_tracks is not None else None
+
             # set the indices for the satellite and quadrant you want to look at here
             ii = (ssat == satellite) & (azdata > amin) & (azdata < amax) & (phase < 360)
+            # Filter by elevation bin if available (observed range must be within requested bin)
+            if e1_bin is not None:
+                ii = ii & (emin_data >= e1_bin) & (emax_data <= e2_bin)
             # added mjd as an output
             y,t,h,x,azd,s,amp_lsps,amp_lss,rhs,ap_rhs,mjds = \
                     qp.rename_vals(year_sat_phase, doy, hr, phase, azdata, ssat, amp_lsp, amp_ls, rh, ap_rh, ii)
             if screenstats:
-                print('Looking at ', int(satellite), amin, amax,' Num vals', len(y))
+                elev_str = f' e1={e1_bin:.0f} e2={e2_bin:.0f}' if e1_bin is not None else ''
+                print('Looking at ', int(satellite), amin, amax, elev_str, ' Num vals', len(y))
 
-            iikk  = (atracks == amin) & (stracks == satellite) 
-            rhtrack = float(tracks[iikk,1]) # a priori RH
-            meanaztrack = float(tracks[iikk,3])
-            nvalstrack = float(tracks[iikk,4])
+            # Get track properties directly from apriori file using track index
+            rhtrack = float(tracks[track_idx, 1])  # a priori RH
+            meanaztrack = float(tracks[track_idx, 3])
+            nvalstrack = float(tracks[track_idx, 4])
 
             if len(x) > reqNumpts:
                 b += 1 # is b used?
