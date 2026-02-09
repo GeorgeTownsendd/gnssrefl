@@ -65,7 +65,20 @@ def main():
         shutil.copy2(result, dst)
         print(f"  -> {dst}")
 
-        # 2. phase day 011 — needs gnssir results from step 1
+        # 2. gnssir -midnite day 011
+        result.unlink(missing_ok=True)
+        print("Running gnssir -midnite day 011 ...")
+        gnssir("mchl", 2025, 11, midnite=True, screenstats=False, plt=False)
+        result = tmp / "2025" / "results" / "mchl" / "011.txt"
+        dst = EXPECTED_DIR / "gnssir_midnite" / "2025" / "011.txt"
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(result, dst)
+        print(f"  -> {dst}")
+
+        # 3. phase day 011 — needs non-midnite gnssir results, so rerun
+        result.unlink(missing_ok=True)
+        gnssir("mchl", 2025, 11, screenstats=False, plt=False)
+        # phase day 011 — needs gnssir results from step above
         print("Running phase day 011 ...")
         quickphase("mchl", 2025, 11, screenstats=False, plt=False)
         phase_result = tmp / "2025" / "phase" / "mchl" / "011.txt"
@@ -74,13 +87,26 @@ def main():
         shutil.copy2(phase_result, dst)
         print(f"  -> {dst}")
 
-        # 3. gnssir day 011 with savearcs
-        # Remove previous result so we get a fresh run
+        # 4. gnssir day 011 with savearcs
         result.unlink(missing_ok=True)
         print("Running gnssir day 011 with savearcs ...")
         gnssir("mchl", 2025, 11, savearcs=True, screenstats=False, plt=False)
         arcs_src = tmp / "2025" / "arcs" / "mchl" / "011"
         arcs_dst = EXPECTED_DIR / "arcs" / "2025" / "011"
+        if arcs_dst.exists():
+            shutil.rmtree(arcs_dst)
+        arcs_dst.mkdir(parents=True)
+        for f in arcs_src.glob("*.txt"):
+            shutil.copy2(f, arcs_dst / f.name)
+        print(f"  -> {arcs_dst}/ ({len(list(arcs_dst.glob('*.txt')))} files)")
+
+        # 5. gnssir -midnite day 011 with savearcs
+        result.unlink(missing_ok=True)
+        shutil.rmtree(arcs_src, ignore_errors=True)
+        print("Running gnssir -midnite day 011 with savearcs ...")
+        gnssir("mchl", 2025, 11, midnite=True, savearcs=True, screenstats=False, plt=False)
+        arcs_src = tmp / "2025" / "arcs" / "mchl" / "011"
+        arcs_dst = EXPECTED_DIR / "arcs_midnite" / "2025" / "011"
         if arcs_dst.exists():
             shutil.rmtree(arcs_dst)
         arcs_dst.mkdir(parents=True)

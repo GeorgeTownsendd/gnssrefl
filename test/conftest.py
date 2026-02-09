@@ -36,6 +36,11 @@ def refl_code_with_mchl(tmp_path):
     shutil.copy2(input_src / "mchl.json", input_dst / "mchl.json")
     shutil.copy2(input_src / "mchl_phaseRH_L2.txt", input_dst / "mchl_phaseRH_L2.txt")
 
+    # Copy pre-generated refraction file (avoids needing gpt_1wA.pickle)
+    refr_src = FIXTURE_DIR / "input" / "mchl_refr.txt"
+    if refr_src.exists():
+        shutil.copy2(refr_src, tmp_path / "input" / "mchl_refr.txt")
+
     # Create required output directories
     for subdir in ["Files", "logs", "phase"]:
         (tmp_path / subdir).mkdir(parents=True, exist_ok=True)

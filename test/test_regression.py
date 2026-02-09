@@ -213,6 +213,17 @@ def test_gnssir_output_unchanged(refl_code_with_mchl):
     _compare_tracks(actual, expected, "gnssir")
 
 
+def test_gnssir_midnite_output_unchanged(refl_code_with_mchl):
+    from gnssrefl.gnssir_cl import gnssir
+
+    tmp = refl_code_with_mchl
+    gnssir("mchl", 2025, 11, midnite=True, screenstats=False, plt=False)
+
+    actual = _load_output(tmp / "2025" / "results" / "mchl" / "011.txt")
+    expected = _load_output(EXPECTED_DIR / "gnssir_midnite" / "2025" / "011.txt")
+    _compare_tracks(actual, expected, "gnssir")
+
+
 def test_phase_output_unchanged(refl_code_with_mchl):
     from gnssrefl.gnssir_cl import gnssir
     from gnssrefl.quickPhase import quickphase
@@ -227,15 +238,8 @@ def test_phase_output_unchanged(refl_code_with_mchl):
     _compare_tracks(actual, expected, "phase")
 
 
-def test_gnssir_arcs_unchanged(refl_code_with_mchl):
-    from gnssrefl.gnssir_cl import gnssir
-
-    tmp = refl_code_with_mchl
-    gnssir("mchl", 2025, 11, savearcs=True, screenstats=False, plt=False)
-
-    actual_dir = tmp / "2025" / "arcs" / "mchl" / "011"
-    expected_dir = EXPECTED_DIR / "arcs" / "2025" / "011"
-
+def _compare_arcs(actual_dir, expected_dir):
+    """Compare arc files between actual and expected directories."""
     actual_files = {f.name for f in actual_dir.glob("*.txt")}
     expected_files = {f.name for f in expected_dir.glob("*.txt")}
 
@@ -248,7 +252,6 @@ def test_gnssir_arcs_unchanged(refl_code_with_mchl):
         act = np.loadtxt(actual_dir / name, comments="%")
         exp = np.loadtxt(expected_dir / name, comments="%")
         if act.shape != exp.shape or not np.allclose(act, exp, rtol=1e-6):
-            # Identify which columns diverged
             col_names = ["elev", "dSNR", "sec"]
             bad_cols = []
             if act.shape == exp.shape:
@@ -284,3 +287,27 @@ def test_gnssir_arcs_unchanged(refl_code_with_mchl):
             lines.append(f"  {name}  diverged in: {', '.join(bad_cols)}")
 
     pytest.fail("\n".join(lines))
+
+
+def test_gnssir_arcs_unchanged(refl_code_with_mchl):
+    from gnssrefl.gnssir_cl import gnssir
+
+    tmp = refl_code_with_mchl
+    gnssir("mchl", 2025, 11, savearcs=True, screenstats=False, plt=False)
+
+    _compare_arcs(
+        tmp / "2025" / "arcs" / "mchl" / "011",
+        EXPECTED_DIR / "arcs" / "2025" / "011",
+    )
+
+
+def test_gnssir_midnite_arcs_unchanged(refl_code_with_mchl):
+    from gnssrefl.gnssir_cl import gnssir
+
+    tmp = refl_code_with_mchl
+    gnssir("mchl", 2025, 11, midnite=True, savearcs=True, screenstats=False, plt=False)
+
+    _compare_arcs(
+        tmp / "2025" / "arcs" / "mchl" / "011",
+        EXPECTED_DIR / "arcs_midnite" / "2025" / "011",
+    )
