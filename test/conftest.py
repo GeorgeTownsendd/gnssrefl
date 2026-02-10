@@ -41,6 +41,10 @@ def refl_code_with_mchl(tmp_path):
     if refr_src.exists():
         shutil.copy2(refr_src, tmp_path / "input" / "mchl_refr.txt")
 
+    # Create empty gpt_1wA.pickle to prevent gnssir_cl from trying to download it.
+    # The actual pickle is 21MB and not needed — the refraction file above is sufficient.
+    (tmp_path / "input" / "gpt_1wA.pickle").touch()
+
     # Create required output directories
     for subdir in ["Files", "logs", "phase"]:
         (tmp_path / subdir).mkdir(parents=True, exist_ok=True)
