@@ -1,55 +1,49 @@
-# Regenerating Golden Files
+# Golden Files
 
 Golden files are the expected output that regression tests compare against.
-Regenerate them when output changes are **intentional**.
+They are **generated automatically in CI** from a pinned version of gnssrefl,
+so they never need to be committed.
 
-## Tests
+## How it works
 
-- `test_gnssir_output_unchanged`: gnssir results for day 011 match golden output
-- `test_gnssir_midnite_output_unchanged`: gnssir -midnite results for day 011 match golden output
-- `test_gnssir_arcs_unchanged`: individual arc files for day 011 match golden output
-- `test_gnssir_midnite_arcs_unchanged`: individual arc files with -midnite for day 011 match golden output
-- `test_phase_output_unchanged`: phase estimates for day 011 match golden output
+The CI workflow (`.github/workflows/ci.yml`) has a step that:
 
-## Prerequisites
+1. Installs a pinned release (e.g. `gnssrefl==3.19.0`) inside the Docker container
+2. Runs `gnssir` and `phase` on the committed test data to produce golden files
+3. Reinstalls the current branch code
+4. Runs pytest, which compares current output against the golden files
 
-- gnssrefl installed (`pip install .`) with CLI commands available on `$PATH`
-- `$REFL_CODE` environment variable set (see install docs)
-- If regenerating the apriori file, a full year of snr data from mchl/mchl00aus
+Because both generation and testing happen in the same Docker container, there
+are no platform differences (Mac ARM vs Linux x86_64) to cause false failures.
 
-## 1. Golden files
+## Changing the baseline version
 
-Run non-midnite first, copy, then midnite, copy (commands overwrite output files).
+Edit the `pip3 install gnssrefl==X.Y.Z` line in `.github/workflows/ci.yml`.
 
-```bash
-# gnssir day 011
-gnssir mchl 2025 11 -savearcs T
-cp $REFL_CODE/2025/results/mchl/011.txt test/data/expected/gnssir/2025/
-cp $REFL_CODE/2025/arcs/mchl/011/*.txt test/data/expected/arcs/2025/011/
+## Running tests locally
 
-# phase day 011
-phase mchl 2025 11
-cp $REFL_CODE/2025/phase/mchl/011.txt test/data/expected/phase/2025/
-
-# gnssir -midnite day 011
-gnssir mchl 2025 11 -midnite T -savearcs T
-cp $REFL_CODE/2025/results/mchl/011.txt test/data/expected/gnssir_midnite/2025/
-cp $REFL_CODE/2025/arcs/mchl/011/*.txt test/data/expected/arcs_midnite/2025/011/
-```
-
-## 2. Supplementary files
-
-Only needed if station config or input data changes.
+To run tests locally, you need to generate golden files first. Use the same
+commands from the CI step, substituting `$REFL_CODE` for your local path:
 
 ```bash
-# SNR files — days 010-012 needed for midnite buffer on day 011
-cp $REFL_CODE/2025/snr/mchl/mchl010*.25.snr66* test/data/refl_code/2025/snr/mchl/
-cp $REFL_CODE/2025/snr/mchl/mchl011*.25.snr66* test/data/refl_code/2025/snr/mchl/
-cp $REFL_CODE/2025/snr/mchl/mchl012*.25.snr66* test/data/refl_code/2025/snr/mchl/
+# Install the pinned version
+pip install gnssrefl==3.19.0
 
-# Station JSON config — created by gnssir_input mchl
-cp $REFL_CODE/input/mchl/mchl.json test/data/refl_code/input/mchl/
+# Run gnssir and phase, then copy output to test/data/expected/
+# (see ci.yml for the exact commands)
 
-# Apriori RH file — create with vwc_input mchl after running gnssir mchl 2025 1 -doy_end 365
-cp $REFL_CODE/input/mchl/mchl_phaseRH_L2.txt test/data/refl_code/input/mchl/
+# Reinstall your local code
+pip install .
+
+# Run tests
+pytest test/
 ```
+
+## Test data (committed)
+
+These input files stay committed in the repo:
+
+- `test/data/refl_code/2025/snr/mchl/*.snr66.gz` (3 SNR files for days 010-012)
+- `test/data/refl_code/input/mchl/mchl.json`
+- `test/data/refl_code/input/mchl/mchl_phaseRH_L2.txt`
+- `test/data/refl_code/input/mchl_refr.txt`
