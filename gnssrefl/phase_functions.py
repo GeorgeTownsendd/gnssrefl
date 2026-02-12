@@ -734,6 +734,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                 return
 
             qc_lines = []
+            all_results = []
             for freq in fr_list:
                 # read apriori reflector height results
                 apriori_results = read_apriori_rh(station, freq, extension)
@@ -872,8 +873,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                     if raw_amp < 0:
                         phase = phase + 180
 
-                    result = [[year, doy, utctime, phase, nv, avg_azim, sat_number, amp, min_el, max_el, del_t, rh_apriori, freq, max_f, obs_pk2noise, max_amp]]
-                    np.savetxt(my_file, result, fmt="%4.0f %3.0f %6.2f %8.3f %5.0f %6.1f %3.0f %5.2f %5.2f %5.2f %6.2f %5.3f %2.0f %6.3f %6.2f %6.2f", comments="%")
+                    all_results.append([year, doy, utctime, phase, nv, avg_azim, sat_number, amp, min_el, max_el, del_t, rh_apriori, freq, max_f, obs_pk2noise, max_amp])
                     n_saved += 1
 
                 after_track = n_total - n_filter_track
@@ -884,6 +884,10 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                 after_amp = after_noise - n_filter_amp
                 after_pk2noise = after_amp - n_filter_pk2noise
                 qc_lines.append(f'Freq {freq} QC: {n_total} arcs -> track {after_track} -> ediff {after_ediff} -> L2C/L5 {after_freq} -> tooclose {after_tooclose} -> noise {after_noise} -> amp {after_amp} -> pk2noise {after_pk2noise} -> delT {n_saved} saved')
+
+            if all_results:
+                all_results.sort(key=lambda r: r[2])  # sort by hour
+                np.savetxt(my_file, all_results, fmt="%4.0f %3.0f %6.2f %8.3f %5.0f %6.1f %3.0f %5.2f %5.2f %5.2f %6.2f %5.3f %2.0f %6.3f %6.2f %6.2f", comments="%")
 
             if qc_lines:
                 print('\n' + '\n'.join(qc_lines))
