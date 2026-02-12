@@ -40,7 +40,7 @@ def parse_arguments():
 
 
 def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end: int = None, snr: int = 66,
-        fr: str = None, e1: float = 5, e2: float = 30, plt: bool = False, screenstats: bool = False, gzip: bool = True, extension: str = '', par: int = None, midnite: bool = False):
+        fr: str = None, e1: float = None, e2: float = None, plt: bool = False, screenstats: bool = False, gzip: bool = True, extension: str = '', par: int = None, midnite: bool = False):
     """
     quickphase computes phase, which are subquently used in vwc. The command line call is phase
     (which maybe we should change).
@@ -86,9 +86,9 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
     fr : str, optional
         GNSS frequency. Currently only supports L2C. Default is 20 (l2c)
     e1 : float, optional
-        Elevation angle lower limit in degrees for the LSP. default is 5
+        Elevation angle lower limit in degrees for the LSP. default is from json (typically 5)
     e2: float, optional
-        Elevation angle upper limit in degrees for the LSP. default is 30
+        Elevation angle upper limit in degrees for the LSP. default is from json (typically 25)
     plt: bool, optional
         Whether to plot results. Default is False
     screenstats: bool, optional
@@ -139,8 +139,12 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
 
     g.result_directories(station, year, '')
 
-    # this should really be read from the json
-    pele = [5, 30]  # polynomial fit limits  for direct signal
+    # Read station json for e1/e2 defaults (same as gnssir_cl.py)
+    lsp = guts2.read_json_file(station, extension)
+    if e1 is None:
+        e1 = lsp.get('e1', 5)
+    if e2 is None:
+        e2 = lsp.get('e2', 25)
 
     # Set up timing and parallel processing
     t1 = time.time()
@@ -162,7 +166,7 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
     # Create args for worker function
     args = {
         'station': station, 'snr': snr, 'fr_list': fr_list, 'e1': e1, 'e2': e2,
-        'pele': pele, 'plt': plt, 'screenstats': screenstats, 'compute_lsp': compute_lsp,
+        'plt': plt, 'screenstats': screenstats, 'compute_lsp': compute_lsp,
         'gzip': gzip, 'extension': extension, 'midnite': midnite
     }
     
@@ -182,7 +186,7 @@ def process_phase_day(year, doy, args, error_queue=None):
     try:
         print(f'Analyzing year/day of year {year}/{doy}')
         qp.phase_tracks(args['station'], year, doy, args['snr'], args['fr_list'],
-                       args['e1'], args['e2'], args['pele'], args['plt'],
+                       args['e1'], args['e2'], args['plt'],
                        args['screenstats'], args['compute_lsp'], args['gzip'], args['extension'],
                        args['midnite'])
     except Exception as e:
