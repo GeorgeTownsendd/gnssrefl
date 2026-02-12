@@ -136,10 +136,18 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
 
             # Extract arcs
             from gnssrefl.extract_arcs import extract_arcs
-            arcs = extract_arcs(snrD, freq=f, e1=e1, e2=e2, ellist=ellist, azlist=azvalues, sat_list=satlist, ediff=ediff, polyV=lsp['polyV'], dbhz=dbhz)
+            arcs = extract_arcs(snrD, freq=f, e1=e1, e2=e2, ellist=ellist, azlist=azvalues, sat_list=satlist, polyV=lsp['polyV'], dbhz=dbhz)
 
             # Process each arc
             for a, (meta, data) in enumerate(arcs):
+                # ediff QC: check arc elevation coverage
+                if (meta['ele_start'] - e1) > ediff:
+                    continue
+                if (meta['ele_end'] - e2) < -ediff:
+                    continue
+                min_deg = (e2 - ediff) - (e1 + ediff)
+                if (meta['ele_end'] - meta['ele_start']) < min_deg:
+                    continue
                 found_results = True
 
                 # Map extract_arcs output to expected variables
