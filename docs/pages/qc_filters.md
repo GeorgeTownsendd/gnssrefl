@@ -10,7 +10,7 @@ documents every filter and its default threshold.
 |--------|-------------|----------|---------|
 | ediff: start | `min_elevation - e1 > ediff` | `ediff` | 2 deg |
 | ediff: end | `e2 - max_elevation > ediff` | `ediff` | 2 deg |
-| No noise data | No LSP values in the noise region to compute a noise floor | `NReg` | [0.5, 8] m |
+| No noise data | Noise region `[NReg[0], NReg[1]]` doesn't overlap with `[minH, maxH]` | `NReg` | [0.5, 8] m |
 | Amplitude | `peak_amplitude <= reqAmp` | `reqAmp` | 5.0 |
 | Peak-to-noise | `peak_amplitude / mean_noise <= PkNoise` | `PkNoise` | 2.8 |
 | Arc duration | `arc_duration >= delTmax` | `delTmax` | 75 min |
