@@ -918,7 +918,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                 after_noise = after_tooclose - n_filter_noise
                 after_amp = after_noise - n_filter_amp
                 after_pk2noise = after_amp - n_filter_pk2noise
-                qc_lines.append(f'Freq {freq} QC: {n_total} arcs -> track {after_track} -> ediff {after_ediff} -> L2C/L5 {after_freq} -> tooclose {after_tooclose} -> noise {after_noise} -> amp {after_amp} -> pk2noise {after_pk2noise} -> delT {n_saved} saved')
+                qc_lines.append(f'Freq {freq} QC: {n_total} arcs -> track {after_track} -> ediff {after_ediff} -> L2C/L5 {after_freq} -> amp {after_amp} -> pk2noise {after_pk2noise} -> delT {n_saved} saved')
 
             if all_results:
                 all_results.sort(key=lambda r: r[2])  # sort by hour
