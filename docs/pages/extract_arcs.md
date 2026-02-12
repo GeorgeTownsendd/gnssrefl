@@ -5,7 +5,8 @@
 The `extract_arcs` module provides programmatic access to the individual
 satellite arcs that underlie `gnssir` and `quickphase`. It returns each arc's
 detrended SNR data and metadata as Python objects so you can inspect, filter, or
-plot arcs in your own scripts.
+plot arcs in your own scripts. After extraction, both pipelines apply
+[QC filters](qc_filters.md) before accepting results.
 
 Two convenience functions cover the most common workflows:
 
