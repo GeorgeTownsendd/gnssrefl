@@ -110,9 +110,10 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
     else:
         savearcs_format = 'txt'
 
-    if True: # so we don't have to reindent everything ... 
+    if True: # so we don't have to reindent everything ...
         total_arcs = 0
         ct = 0
+        qc_lines = []
 #       the main loop a given list of frequencies
         for f in freqs:
             found_results = False
@@ -139,11 +140,16 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
             arcs = extract_arcs(snrD, freq=f, e1=e1, e2=e2, ellist=ellist, azlist=azvalues, sat_list=satlist, polyV=lsp['polyV'], dbhz=dbhz)
 
             # Process each arc
+            n_total = len(arcs)
+            n_filter_ediff = 0; n_filter_tooclose = 0; n_filter_amp = 0
+            n_filter_pk2noise = 0; n_filter_delT = 0
             for a, (meta, data) in enumerate(arcs):
                 # ediff QC: check arc elevation coverage
                 if (meta['ele_start'] - e1) > ediff:
+                    n_filter_ediff += 1
                     continue
                 if (meta['ele_end'] - e2) < -ediff:
+                    n_filter_ediff += 1
                     continue
                 found_results = True
 
@@ -210,7 +216,15 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
                         failed = False
                         guts.local_update_plot(x,y,px,pz,ax1,ax2,failed)
                 else:
-                    # QC failed
+                    # QC failed - count which filter caught it first
+                    if tooclose:
+                        n_filter_tooclose += 1
+                    elif maxAmp <= reqAmp[ct]:
+                        n_filter_amp += 1
+                    elif maxAmp/Noise <= PkNoise:
+                        n_filter_pk2noise += 1
+                    elif delT >= delTmax:
+                        n_filter_delT += 1
                     if test_savearcs and (Nv > 0):
                         newffile = guts.arc_name(sdir+'failQC/',satNu,f,a,avgAzim)
                         if (len(newffile) > 0) and (delT != 0):
@@ -224,9 +238,15 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
                         failed = True
                         guts.local_update_plot(x,y,px,pz,ax1,ax2,failed)
 
+            after_ediff = n_total - n_filter_ediff
+            after_tooclose = after_ediff - n_filter_tooclose
+            after_amp = after_tooclose - n_filter_amp
+            after_pk2noise = after_amp - n_filter_pk2noise
+            qc_lines.append(f'Freq {f} QC: {n_total} arcs -> ediff {after_ediff} -> tooclose {after_tooclose} -> amp {after_amp} -> pk2noise {after_pk2noise} -> delT {gj} saved')
             if screenstats:
                 logid.write('=================================================================================\n')
                 logid.write('     Frequency  {0:3.0f}   good arcs: {1:3.0f}  rejected arcs: {2:3.0f} \n'.format( f, gj, rj))
+                logid.write(f'Freq {f} QC: {n_total} arcs -> ediff {after_ediff} -> tooclose {after_tooclose} -> amp {after_amp} -> pk2noise {after_pk2noise} -> delT {gj} saved\n')
                 logid.write('=================================================================================\n')
             total_arcs = gj + total_arcs
 # close the output files
@@ -286,3 +306,6 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
             print(lspname,orgexist)
             if orgexist:
                 subprocess.call(['rm', '-f',lspname])
+
+        if qc_lines:
+            print('\n' + '\n'.join(qc_lines))
