@@ -733,6 +733,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                 print(f'Problem reading SNR file: {obsfile}')
                 return
 
+            qc_lines = []
             for freq in fr_list:
                 # read apriori reflector height results
                 apriori_results = read_apriori_rh(station, freq, extension)
@@ -875,15 +876,17 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                     np.savetxt(my_file, result, fmt="%4.0f %3.0f %6.2f %8.3f %5.0f %6.1f %3.0f %5.2f %5.2f %5.2f %6.2f %5.3f %2.0f %6.3f %6.2f %6.2f", comments="%")
                     n_saved += 1
 
-                if screenstats:
-                    after_track = n_total - n_filter_track
-                    after_ediff = after_track - n_filter_ediff
-                    after_freq = after_ediff - n_filter_freq
-                    after_tooclose = after_freq - n_filter_tooclose
-                    after_noise = after_tooclose - n_filter_noise
-                    after_amp = after_noise - n_filter_amp
-                    after_pk2noise = after_amp - n_filter_pk2noise
-                    print(f'Freq {freq}: {n_total} arcs -> track {after_track} -> ediff {after_ediff} -> L2C/L5 {after_freq} -> tooclose {after_tooclose} -> noise {after_noise} -> amp {after_amp} -> pk2noise {after_pk2noise} -> delT {n_saved} saved')
+                after_track = n_total - n_filter_track
+                after_ediff = after_track - n_filter_ediff
+                after_freq = after_ediff - n_filter_freq
+                after_tooclose = after_freq - n_filter_tooclose
+                after_noise = after_tooclose - n_filter_noise
+                after_amp = after_noise - n_filter_amp
+                after_pk2noise = after_amp - n_filter_pk2noise
+                qc_lines.append(f'Freq {freq} QC: {n_total} arcs -> track {after_track} -> ediff {after_ediff} -> L2C/L5 {after_freq} -> tooclose {after_tooclose} -> noise {after_noise} -> amp {after_amp} -> pk2noise {after_pk2noise} -> delT {n_saved} saved')
+
+            if qc_lines:
+                print('\n' + '\n'.join(qc_lines))
 
         # gzip SNR file if requested
         if gzip:
