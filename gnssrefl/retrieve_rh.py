@@ -242,7 +242,7 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
             after_tooclose = after_ediff - n_filter_tooclose
             after_amp = after_tooclose - n_filter_amp
             after_pk2noise = after_amp - n_filter_pk2noise
-            qc_lines.append(f'Freq {f} QC: {n_total} arcs -> ediff {after_ediff} -> tooclose {after_tooclose} -> amp {after_amp} -> pk2noise {after_pk2noise} -> delT {gj} saved')
+            qc_lines.append(f'Freq {f} QC: {n_total} arcs -> ediff {after_ediff} -> amp {after_amp} -> pk2noise {after_pk2noise} -> delT {gj} saved')
             if screenstats:
                 logid.write('=================================================================================\n')
                 logid.write('     Frequency  {0:3.0f}   good arcs: {1:3.0f}  rejected arcs: {2:3.0f} \n'.format( f, gj, rj))

@@ -10,6 +10,7 @@ accepting results. This page documents every filter and its default threshold.
 |--------|-------------|----------|---------|
 | ediff: start | `min_elevation - e1 > ediff` | `ediff` | 2 deg |
 | ediff: end | `e2 - max_elevation > ediff` | `ediff` | 2 deg |
+| tooclose | LSP peak RH is within 0.10 m of `minH` or `maxH`, or LSP returned no result | `minH`, `maxH` | 0.5, 8 m |
 | No noise data | Noise region `[NReg[0], NReg[1]]` doesn't overlap with `[minH, maxH]` | `NReg` | [0.5, 8] m |
 | Amplitude | `peak_amplitude <= reqAmp` | `reqAmp` | 5.0 |
 | Peak-to-noise | `peak_amplitude / mean_noise <= PkNoise` | `PkNoise` | 2.8 |
