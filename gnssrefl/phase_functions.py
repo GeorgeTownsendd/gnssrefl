@@ -667,7 +667,7 @@ def get_vwc_frequency(station: str, extension: str, fr_cmd: str = None):
     # Always return a list
     return [final_fr]
 
-def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, pele, plot, screenstats, compute_lsp,gzip, extension='', midnite=False):
+def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, plot, screenstats, compute_lsp,gzip, extension='', midnite=False):
     """
     This does the main work of estimating phase and other parameters from the SNR files
     it uses tracks that were predefined by the apriori.py code
@@ -683,13 +683,11 @@ def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, pele, plot, scre
     snr_type : int
         SNR file extension (i.e. 99, 66 etc)
     fr_list : list of integers
-        frequency, [1], [20] or [1,20] 
+        frequency, [1], [20] or [1,20]
     e1 : float
         min elevation angle (degrees)
-    e2 : float 
+    e2 : float
         max elevation angle (degrees)
-    pele : list of floats 
-        elevation angle limits for the polynomial removal.  units: degrees
     screenstats : bool
         whether statistics are printed to the screen
     compute_lsp : bool
@@ -745,141 +743,61 @@ def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, pele, plot, scre
 
                 print('Analyzing Frequency ', freq, ' Year ', year, ' Day of Year ', doy)
 
-                # Get satellite data using extract_arcs
-                # IMPORTANT for backwards compatibility:
-                #   - detrend=False: phase does its own detrending after azimuth filtering
-                #   - split_arcs=False: returns all data per satellite unsplit, so phase
-                #     can filter by azimuth per apriori track (below)
-                #   - filter_to_day=False: phase has its own utctime filter after azimuth
-                #     filtering, which is more accurate for phase workflow
+                # Extract arcs using gnssir-aligned processing
                 all_arcs = extract_arcs(
-                    snrD, freq=freq, e1=pele[0], e2=pele[1], azlist=[0, 360],
-                    min_pts=1, polyV=poly_v, detrend=False,
-                    screenstats=screenstats, split_arcs=False,
-                    filter_to_day=False,
+                    snrD, freq=freq, e1=e1, e2=e2,
+                    azlist=[0, 360],  # accept all azimuths, match to tracks below
+                    polyV=poly_v, detrend=True, split_arcs=True,
+                    screenstats=screenstats,
+                    filter_to_day=not midnite,
                 )
 
-                # Map satellite -> data. Phase filters by azimuth from apriori_results.
-                sat_data_map = {meta['sat']: (meta, data) for meta, data in all_arcs}
-
-                # =================================================================
-                # BACKWARDS COMPATIBILITY: Phase-specific post-processing
-                # -----------------------------------------------------------------
-                # The following processing replicates the behavior of the legacy
-                # g.window_data() function used by phase processing. This differs
-                # from gnssir's arc extraction in several ways:
-                #   1. Uses apriori azimuth bounds (az1/az2) per track, not global
-                #   2. Applies polynomial detrending after azimuth filtering
-                #   3. Performs rising/setting arc splitting inline
-                #   4. Uses different elevation filtering (pele then e1/e2)
-                # This logic is preserved here to maintain output consistency with
-                # previous versions. Future refactoring could unify this with
-                # extract_arcs if phase and gnssir workflows are aligned.
-                # =================================================================
-
-                # Process each apriori track
+                # Build apriori track lookup
                 rows, columns = np.shape(apriori_results)
-                for i in range(0, rows):
-                    sat_number = int(apriori_results[i, 2])
-                    az1 = apriori_results[i, 5]
-                    az2 = apriori_results[i, 6]
-                    rh_apriori = apriori_results[i, 1]
-                    azim = apriori_results[i, 3]
+                apriori_tracks = []
+                for i in range(rows):
+                    apriori_tracks.append({
+                        'sat': int(apriori_results[i, 2]),
+                        'az1': apriori_results[i, 5],
+                        'az2': apriori_results[i, 6],
+                        'rh_apriori': apriori_results[i, 1],
+                        'track_azim': apriori_results[i, 3],
+                    })
 
-                    if sat_number not in sat_data_map:
-                        continue
-
-                    meta, data = sat_data_map[sat_number]
+                # Process each arc from extract_arcs
+                for meta, data in all_arcs:
+                    sat_number = meta['sat']
+                    az_init = meta['az_init']
                     cf = meta['cf']
 
-                    # Filter by pele, azimuth, SNR > 5 (same as removeDC)
-                    mask = ((data['ele'] > pele[0]) & (data['ele'] < pele[1]) &
-                            (data['azi'] > az1) & (data['azi'] < az2) &
-                            (data['snr'] > 5))
-                    if np.sum(mask) < 30:
+                    # Skip arcs outside principal day when midnite enabled
+                    if midnite and (meta['arc_timestamp'] < 0 or meta['arc_timestamp'] >= 24):
+                        if screenstats:
+                            print(f'Skipping arc: utctime {meta["arc_timestamp"]:.2f} outside principal day')
                         continue
 
-                    arc_ele, arc_snr = data['ele'][mask], data['snr'][mask]
-                    arc_azi, arc_seconds = data['azi'][mask], data['seconds'][mask]
+                    # Match arc to apriori track by satellite and az_init
+                    matching_track = None
+                    for track in apriori_tracks:
+                        if track['sat'] == sat_number and track['az1'] < az_init < track['az2']:
+                            matching_track = track
+                            break
 
-                    # When midnite is enabled, split by time gaps to separate multi-day data
-                    if midnite and len(arc_seconds) > 1:
-                        # Sort by time and find gaps > 1 hour
-                        sort_idx = np.argsort(arc_seconds)
-                        arc_ele, arc_snr = arc_ele[sort_idx], arc_snr[sort_idx]
-                        arc_azi, arc_seconds = arc_azi[sort_idx], arc_seconds[sort_idx]
-
-                        time_gaps = np.diff(arc_seconds)
-                        gap_indices = np.where(time_gaps > 3600)[0]  # gaps > 1 hour
-
-                        if len(gap_indices) > 0:
-                            # Split into segments and keep the one in principal day [0, 24)
-                            boundaries = [0] + list(gap_indices + 1) + [len(arc_seconds)]
-                            best_segment = None
-                            for j in range(len(boundaries) - 1):
-                                start, end = boundaries[j], boundaries[j + 1]
-                                seg_seconds = arc_seconds[start:end]
-                                seg_utctime = np.mean(seg_seconds) / 3600
-                                if 0 <= seg_utctime < 24:
-                                    if best_segment is None or len(seg_seconds) > len(best_segment[0]):
-                                        best_segment = (seg_seconds, start, end)
-
-                            if best_segment is None:
-                                continue  # No segment in principal day
-
-                            _, start, end = best_segment
-                            arc_ele = arc_ele[start:end]
-                            arc_snr = arc_snr[start:end]
-                            arc_azi = arc_azi[start:end]
-                            arc_seconds = arc_seconds[start:end]
-
-                            if len(arc_ele) < 30:
-                                continue
-
-                    # Polynomial fit (same as window_data)
-                    fit = np.polyval(np.polyfit(arc_ele, arc_snr, poly_v), arc_ele)
-                    arc_snr_detrended = arc_snr - fit
-
-                    # Secondary e1/e2 filter (same as window_data)
-                    e_mask = (arc_ele > e1) & (arc_ele < e2)
-                    if np.sum(e_mask) < 10:
+                    if matching_track is None:
                         continue
 
-                    x, y = arc_ele[e_mask], arc_snr_detrended[e_mask]
-                    azi_filtered, seconds_filtered = arc_azi[e_mask], arc_seconds[e_mask]
+                    rh_apriori = matching_track['rh_apriori']
+                    track_azim = matching_track['track_azim']
 
-                    # Rising/setting split (same as window_data lines 1759-1779)
-                    if len(x) > 0:
-                        ijkl = np.argmax(x)
-                        if ijkl > 0 and ijkl < len(x) - 1:
-                            edif1 = x[ijkl] - x[0]
-                            edif2 = x[ijkl] - x[-1]
-                            if edif1 > edif2:
-                                x = x[0:ijkl]
-                                y = y[0:ijkl]
-                                azi_filtered = azi_filtered[0:ijkl]
-                                seconds_filtered = seconds_filtered[0:ijkl]
-                            else:
-                                x = x[ijkl:-1]
-                                y = y[ijkl:-1]
-                                azi_filtered = azi_filtered[ijkl:-1]
-                                seconds_filtered = seconds_filtered[ijkl:-1]
-
+                    # Data is already detrended and e1/e2 filtered by extract_arcs
+                    x, y = data['ele'], data['snr']
                     nv = len(x)
                     if nv < min_num_pts:
                         continue
 
-                    # Compute metadata
-                    utctime = np.mean(seconds_filtered) / 3600
-                    avg_azim = np.mean(azi_filtered)
-                    del_t = (np.max(seconds_filtered) - np.min(seconds_filtered)) / 60
-
-                    # When midnite is enabled, skip arcs whose midpoint falls outside principal day
-                    # This can happen when azimuth filtering selects data primarily from buffer regions
-                    if midnite and (utctime < 0 or utctime >= 24):
-                        if screenstats:
-                            print(f'Skipping arc: utctime {utctime:.2f} outside principal day')
-                        continue
+                    utctime = meta['arc_timestamp']
+                    avg_azim = meta['az_avg']
+                    del_t = meta['delT']
 
                     # L2C/L5 satellite checks
                     compute_lsp = True
@@ -894,7 +812,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, pele, plot, scre
                         compute_lsp = False
 
                     if screenstats:
-                        print(f'Track {i:2.0f} Sat {sat_number:3.0f} Azimuth {azim:5.1f} RH {rh_apriori:6.2f} {nv:5.0f}')
+                        print(f'Sat {sat_number:3.0f} Azimuth {track_azim:5.1f} RH {rh_apriori:6.2f} {nv:5.0f}')
 
                     if compute_lsp and (nv > min_num_pts):
                         min_height = 0.5 ; max_height = 8 ; desired_p = 0.01
@@ -914,8 +832,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, pele, plot, scre
                             max_amp = 0
 
                         if (nv > min_num_pts) and (max_amp > min_amp):
-                            minmax = np.max(x) - np.min(x)
-                            if (minmax > 22) and (del_t < 120):
+                            if del_t < 120:
                                 x_data = np.sin(np.deg2rad(x))
                                 y_data = y
                                 test_function_apriori = partial(test_func_new, rh_apriori=rh_apriori,freq=freq)
