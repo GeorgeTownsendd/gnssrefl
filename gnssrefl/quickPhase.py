@@ -110,7 +110,6 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
 
     """
 
-    compute_lsp = True # used to be an optional input
     if len(station) != 4:
         print('Station name must be four characters long. Exiting.')
         sys.exit()
@@ -140,20 +139,18 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
 
     g.result_directories(station, year, '')
 
-    # Read station json for e1/e2 defaults (same as gnssir_cl.py)
+    # Read station json and apply CLI overrides (same pattern as gnssir_cl.py)
     lsp = guts2.read_json_file(station, extension)
-    if e1 is None:
-        e1 = lsp.get('e1', 5)
-    if e2 is None:
-        e2 = lsp.get('e2', 25)
-    poly_v = lsp.get('polyV', 4)
+    if e1 is not None:
+        lsp['e1'] = e1
+    if e2 is not None:
+        lsp['e2'] = e2
     if ampl is not None:
-        min_amp = ampl
-    else:
-        min_amp = lsp.get('reqAmp', [5.0])[0]
-    noise_region = lsp.get('NReg', [0.5, 8])
-    min_height = lsp.get('minH', 0.5)
-    max_height = lsp.get('maxH', 8)
+        lsp['reqAmp'] = [ampl]
+    lsp['screenstats'] = screenstats
+    lsp['midnite'] = midnite
+    lsp['plt_screen'] = plt
+    lsp['gzip'] = gzip
 
     # Set up timing and parallel processing
     t1 = time.time()
@@ -174,11 +171,8 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
     
     # Create args for worker function
     args = {
-        'station': station, 'snr': snr, 'fr_list': fr_list, 'e1': e1, 'e2': e2,
-        'poly_v': poly_v, 'min_amp': min_amp,
-        'noise_region': noise_region, 'min_height': min_height, 'max_height': max_height,
-        'plt': plt, 'screenstats': screenstats, 'compute_lsp': compute_lsp,
-        'gzip': gzip, 'extension': extension, 'midnite': midnite
+        'station': station, 'snr': snr, 'fr_list': fr_list,
+        'lsp': lsp, 'extension': extension,
     }
     
     if par == 1:
@@ -197,10 +191,7 @@ def process_phase_day(year, doy, args, error_queue=None):
     try:
         print(f'Analyzing year/day of year {year}/{doy}')
         qp.phase_tracks(args['station'], year, doy, args['snr'], args['fr_list'],
-                       args['e1'], args['e2'], args['poly_v'], args['min_amp'],
-                       args['noise_region'], args['min_height'], args['max_height'],
-                       args['plt'], args['screenstats'], args['compute_lsp'],
-                       args['gzip'], args['extension'], args['midnite'])
+                       args['lsp'], args['extension'])
     except Exception as e:
         if error_queue:
             print('***********************************************************************')
