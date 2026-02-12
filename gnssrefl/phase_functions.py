@@ -736,6 +736,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
     max_height = lsp.get('maxH', 8)
     desired_p = lsp.get('desiredP', 0.01)
     delTmax = lsp.get('delTmax', 120)
+    PkNoise = lsp.get('PkNoise', 3)
     screenstats = lsp.get('screenstats', False)
     midnite = lsp.get('midnite', False)
     gzip = lsp.get('gzip', True)
@@ -856,7 +857,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                         else:
                             max_amp = 0
 
-                        if max_amp > min_amp:
+                        if (max_amp > min_amp) and (max_amp/noise > PkNoise):
                             if del_t < delTmax:
                                 x_data = np.sin(np.deg2rad(x))
                                 y_data = y
