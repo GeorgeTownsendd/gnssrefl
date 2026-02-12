@@ -151,6 +151,9 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
         min_amp = ampl
     else:
         min_amp = lsp.get('reqAmp', [5.0])[0]
+    noise_region = lsp.get('NReg', [0.5, 8])
+    min_height = lsp.get('minH', 0.5)
+    max_height = lsp.get('maxH', 8)
 
     # Set up timing and parallel processing
     t1 = time.time()
@@ -173,6 +176,7 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
     args = {
         'station': station, 'snr': snr, 'fr_list': fr_list, 'e1': e1, 'e2': e2,
         'poly_v': poly_v, 'min_amp': min_amp,
+        'noise_region': noise_region, 'min_height': min_height, 'max_height': max_height,
         'plt': plt, 'screenstats': screenstats, 'compute_lsp': compute_lsp,
         'gzip': gzip, 'extension': extension, 'midnite': midnite
     }
@@ -194,8 +198,9 @@ def process_phase_day(year, doy, args, error_queue=None):
         print(f'Analyzing year/day of year {year}/{doy}')
         qp.phase_tracks(args['station'], year, doy, args['snr'], args['fr_list'],
                        args['e1'], args['e2'], args['poly_v'], args['min_amp'],
-                       args['plt'], args['screenstats'], args['compute_lsp'], args['gzip'],
-                       args['extension'], args['midnite'])
+                       args['noise_region'], args['min_height'], args['max_height'],
+                       args['plt'], args['screenstats'], args['compute_lsp'],
+                       args['gzip'], args['extension'], args['midnite'])
     except Exception as e:
         if error_queue:
             print('***********************************************************************')
