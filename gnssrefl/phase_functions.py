@@ -737,6 +737,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
     desired_p = lsp.get('desiredP', 0.01)
     delTmax = lsp.get('delTmax', 120)
     PkNoise = lsp.get('PkNoise', 3)
+    ediff = lsp.get('ediff', 2)
     screenstats = lsp.get('screenstats', False)
     midnite = lsp.get('midnite', False)
     gzip = lsp.get('gzip', True)
@@ -810,6 +811,15 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                     if matching_track is None:
                         continue
 
+                    # ediff QC: check arc elevation coverage
+                    if (meta['ele_start'] - e1) > ediff:
+                        continue
+                    if (meta['ele_end'] - e2) < -ediff:
+                        continue
+                    min_deg = (e2 - ediff) - (e1 + ediff)
+                    if (meta['ele_end'] - meta['ele_start']) < min_deg:
+                        continue
+
                     rh_apriori = matching_track['rh_apriori']
                     track_azim = matching_track['track_azim']
 
@@ -840,6 +850,14 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                         max_f, max_amp, emin_obs, emax_obs, rise_set, px, pz = g.strip_compute(x, y, cf, max_height,
                                                                                            desired_p, poly_v, min_height)
 
+                        tooclose = False
+                        if (max_f == 0) and (max_amp == 0):
+                            tooclose = True
+                        if abs(max_f - min_height) < 0.10:
+                            tooclose = True
+                        if abs(max_f - max_height) < 0.10:
+                            tooclose = True
+
                         nij = pz[(px > noise_region[0]) & (px < noise_region[1])]
                         noise = 0
                         if len(nij) > 0:
@@ -851,7 +869,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                         else:
                             max_amp = 0
 
-                        if (max_amp > min_amp) and (max_amp/noise > PkNoise):
+                        if (not tooclose) and (max_amp > min_amp) and (max_amp/noise > PkNoise):
                             if del_t < delTmax:
                                 x_data = np.sin(np.deg2rad(x))
                                 y_data = y
