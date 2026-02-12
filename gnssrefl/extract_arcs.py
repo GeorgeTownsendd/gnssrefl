@@ -144,7 +144,6 @@ def extract_arcs(
     azlist: Optional[List[float]] = None,
     sat_list: Optional[List[int]] = None,
     min_pts: int = MIN_ARC_POINTS,
-    ediff: float = 2.0,
     polyV: int = 4,
     dbhz: bool = False,
     screenstats: bool = False,
@@ -179,8 +178,6 @@ def extract_arcs(
         Specific satellites to process. Default: all satellites in data
     min_pts : int
         Minimum points required per arc. Default: 20
-    ediff : float
-        Elevation difference tolerance for arc validation (degrees). Default: 2.0
     polyV : int
         Polynomial order for DC removal. Default: 4
     dbhz : bool
@@ -279,7 +276,7 @@ def extract_arcs(
                     # (arc detection validates against e1/e2 but uses all elevation data)
                     arc_boundaries = _detect_arc_boundaries(
                         sat_ele, sat_azi, sat_seconds,
-                        pair_e1, pair_e2, ediff, sat,
+                        pair_e1, pair_e2, sat,
                         min_pts=min_pts,
                     )
                 else:
@@ -504,7 +501,6 @@ def _detect_arc_boundaries(
     seconds: np.ndarray,
     e1: float,
     e2: float,
-    ediff: float,
     sat: int,
     min_pts: int = MIN_ARC_POINTS,
     gap_time: float = GAP_TIME_LIMIT,
@@ -526,8 +522,6 @@ def _detect_arc_boundaries(
         Minimum elevation angle (degrees) for analysis
     e2 : float
         Maximum elevation angle (degrees) for analysis
-    ediff : float
-        Elevation difference tolerance for QC (degrees)
     sat : int
         Satellite number
     min_pts : int
@@ -542,9 +536,6 @@ def _detect_arc_boundaries(
     """
     if len(ele) < min_pts:
         return []
-
-    # Required minimum elevation span
-    min_deg = (e2 - ediff) - (e1 + ediff)
 
     # Find breakpoints
     ddate = np.ediff1d(seconds)
@@ -579,31 +570,12 @@ def _detect_arc_boundaries(
         if len(arc_ele) == 0:
             continue
 
-        minObse = np.min(arc_ele)
-        maxObse = np.max(arc_ele)
-
-        # Validation checks
-        nogood = False
-
-        # Check min elevation coverage
-        if (minObse - e1) > ediff:
-            nogood = True
-
-        # Check max elevation coverage
-        if (maxObse - e2) < -ediff:
-            nogood = True
-
         # Check minimum point count
         if (eind - sind) < min_pts:
-            nogood = True
+            continue
 
-        # Check elevation span
-        if (maxObse - minObse) < min_deg:
-            nogood = True
-
-        if not nogood:
-            iarc += 1
-            valid_arcs.append((sind, eind, sat, iarc))
+        iarc += 1
+        valid_arcs.append((sind, eind, sat, iarc))
 
     return valid_arcs
 
