@@ -28,6 +28,7 @@ def parse_arguments():
     parser.add_argument("-gzip", default=None, type=str, help="gzip SNR files after use, default is True" )
     parser.add_argument("-par", default=None, type=int, help="Number of processes to spawn (up to 10)")
     parser.add_argument("-midnite", default=None, type=str, help="allow midnite crossings (default is false)")
+    parser.add_argument("-ampl", default=None, type=float, help="Min spectral amplitude")
 
     args = parser.parse_args().__dict__
 
@@ -40,7 +41,7 @@ def parse_arguments():
 
 
 def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end: int = None, snr: int = 66,
-        fr: str = None, e1: float = None, e2: float = None, plt: bool = False, screenstats: bool = False, gzip: bool = True, extension: str = '', par: int = None, midnite: bool = False):
+        fr: str = None, e1: float = None, e2: float = None, plt: bool = False, screenstats: bool = False, gzip: bool = True, extension: str = '', par: int = None, midnite: bool = False, ampl: float = None):
     """
     quickphase computes phase, which are subquently used in vwc. The command line call is phase
     (which maybe we should change).
@@ -145,6 +146,11 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
         e1 = lsp.get('e1', 5)
     if e2 is None:
         e2 = lsp.get('e2', 25)
+    poly_v = lsp.get('polyV', 4)
+    if ampl is not None:
+        min_amp = ampl
+    else:
+        min_amp = lsp.get('reqAmp', [5.0])[0]
 
     # Set up timing and parallel processing
     t1 = time.time()
@@ -166,6 +172,7 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
     # Create args for worker function
     args = {
         'station': station, 'snr': snr, 'fr_list': fr_list, 'e1': e1, 'e2': e2,
+        'poly_v': poly_v, 'min_amp': min_amp,
         'plt': plt, 'screenstats': screenstats, 'compute_lsp': compute_lsp,
         'gzip': gzip, 'extension': extension, 'midnite': midnite
     }
@@ -186,9 +193,9 @@ def process_phase_day(year, doy, args, error_queue=None):
     try:
         print(f'Analyzing year/day of year {year}/{doy}')
         qp.phase_tracks(args['station'], year, doy, args['snr'], args['fr_list'],
-                       args['e1'], args['e2'], args['plt'],
-                       args['screenstats'], args['compute_lsp'], args['gzip'], args['extension'],
-                       args['midnite'])
+                       args['e1'], args['e2'], args['poly_v'], args['min_amp'],
+                       args['plt'], args['screenstats'], args['compute_lsp'], args['gzip'],
+                       args['extension'], args['midnite'])
     except Exception as e:
         if error_queue:
             print('***********************************************************************')

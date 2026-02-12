@@ -667,7 +667,7 @@ def get_vwc_frequency(station: str, extension: str, fr_cmd: str = None):
     # Always return a list
     return [final_fr]
 
-def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, plot, screenstats, compute_lsp,gzip, extension='', midnite=False):
+def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, poly_v, min_amp, plot, screenstats, compute_lsp,gzip, extension='', midnite=False):
     """
     This does the main work of estimating phase and other parameters from the SNR files
     it uses tracks that were predefined by the apriori.py code
@@ -688,6 +688,10 @@ def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, plot, screenstat
         min elevation angle (degrees)
     e2 : float
         max elevation angle (degrees)
+    poly_v : int
+        polynomial order for DC removal
+    min_amp : float
+        minimum spectral amplitude for QC (from json reqAmp or CLI -ampl)
     screenstats : bool
         whether statistics are printed to the screen
     compute_lsp : bool
@@ -699,11 +703,6 @@ def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, plot, screenstat
     Only GPS frequencies are allowed because this relies on the repeating ground track.
 
     """
-
-    min_amp = 3 # should be much higher - but this is primarily to catch L2P data that
-
-    # various defaults - ones the user doesn't change in this quick Look code
-    poly_v = 4 # polynomial order for the direct signal
 
     # this is arbitrary
     min_num_pts = 20
