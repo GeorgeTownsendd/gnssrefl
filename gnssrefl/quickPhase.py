@@ -149,7 +149,6 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
         lsp['reqAmp'] = [ampl]
     lsp['screenstats'] = screenstats
     lsp['midnite'] = midnite
-    lsp['plt_screen'] = plt
     lsp['gzip'] = gzip
 
     # Set up timing and parallel processing
