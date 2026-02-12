@@ -779,7 +779,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                     azlist=[0, 360],  # accept all azimuths, match to tracks below
                     polyV=poly_v, detrend=True, split_arcs=True,
                     screenstats=screenstats,
-                    filter_to_day=not midnite,
+                    filter_to_day=True,
                 )
 
                 # Build apriori track lookup
@@ -799,12 +799,6 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                     sat_number = meta['sat']
                     az_init = meta['az_init']
                     cf = meta['cf']
-
-                    # Skip arcs outside principal day when midnite enabled
-                    if midnite and (meta['arc_timestamp'] < 0 or meta['arc_timestamp'] >= 24):
-                        if screenstats:
-                            print(f'Skipping arc: utctime {meta["arc_timestamp"]:.2f} outside principal day')
-                        continue
 
                     # Match arc to apriori track by satellite and az_init
                     matching_track = None
