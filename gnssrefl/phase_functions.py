@@ -816,9 +816,6 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                         continue
                     if (meta['ele_end'] - e2) < -ediff:
                         continue
-                    min_deg = (e2 - ediff) - (e1 + ediff)
-                    if (meta['ele_end'] - meta['ele_start']) < min_deg:
-                        continue
 
                     rh_apriori = matching_track['rh_apriori']
                     track_azim = matching_track['track_azim']

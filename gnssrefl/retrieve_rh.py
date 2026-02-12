@@ -145,9 +145,6 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
                     continue
                 if (meta['ele_end'] - e2) < -ediff:
                     continue
-                min_deg = (e2 - ediff) - (e1 + ediff)
-                if (meta['ele_end'] - meta['ele_start']) < min_deg:
-                    continue
                 found_results = True
 
                 # Map extract_arcs output to expected variables
