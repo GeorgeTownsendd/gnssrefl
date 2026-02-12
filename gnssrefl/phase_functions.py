@@ -739,10 +739,6 @@ def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, poly_v, min_amp,
 
     """
 
-    # this is arbitrary
-    min_num_pts = 20
-
-
     # get the SNR filename
     obsfile, obsfilecmp, snrexist = g.define_and_xz_snr(station, year, doy, snr_type)
 
@@ -826,8 +822,6 @@ def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, poly_v, min_amp,
                     # Data is already detrended and e1/e2 filtered by extract_arcs
                     x, y = data['ele'], data['snr']
                     nv = len(x)
-                    if nv < min_num_pts:
-                        continue
 
                     utctime = meta['arc_timestamp']
                     avg_azim = meta['az_avg']
@@ -848,7 +842,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, poly_v, min_amp,
                     if screenstats:
                         print(f'Sat {sat_number:3.0f} Azimuth {track_azim:5.1f} RH {rh_apriori:6.2f} {nv:5.0f}')
 
-                    if compute_lsp and (nv > min_num_pts):
+                    if compute_lsp:
                         min_height = 0.5 ; max_height = 8 ; desired_p = 0.01
 
                         max_f, max_amp, emin_obs, emax_obs, rise_set, px, pz = g.strip_compute(x, y, cf, max_height,
@@ -865,7 +859,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, poly_v, min_amp,
                         else:
                             max_amp = 0
 
-                        if (nv > min_num_pts) and (max_amp > min_amp):
+                        if max_amp > min_amp:
                             if del_t < 120:
                                 x_data = np.sin(np.deg2rad(x))
                                 y_data = y
