@@ -702,7 +702,7 @@ def get_vwc_frequency(station: str, extension: str, fr_cmd: str = None):
     # Always return a list
     return [final_fr]
 
-def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, poly_v, min_amp, noise_region, min_height, max_height, plot, screenstats, compute_lsp,gzip, extension='', midnite=False):
+def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
     """
     This does the main work of estimating phase and other parameters from the SNR files
     it uses tracks that were predefined by the apriori.py code
@@ -719,31 +719,26 @@ def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, poly_v, min_amp,
         SNR file extension (i.e. 99, 66 etc)
     fr_list : list of integers
         frequency, [1], [20] or [1,20]
-    e1 : float
-        min elevation angle (degrees)
-    e2 : float
-        max elevation angle (degrees)
-    poly_v : int
-        polynomial order for DC removal
-    min_amp : float
-        minimum spectral amplitude for QC (from json reqAmp or CLI -ampl)
-    noise_region : list of floats
-        [min, max] height range for noise estimation in LSP (from json NReg)
-    min_height : float
-        minimum reflector height for LSP search (from json minH)
-    max_height : float
-        maximum reflector height for LSP search (from json maxH)
-    screenstats : bool
-        whether statistics are printed to the screen
-    compute_lsp : bool
-        this is always true for now
-    gzip : bool
-        whether you want SNR files gzipped after running the code
-    midnite : bool, optional
-        Allow midnight crossings. When True, loads +/- 2 hours from adjacent days. Default is False.
+    lsp : dict
+        station analysis parameters (from json, with CLI overrides applied)
+    extension : str, optional
+        analysis extension for json file. Default is ''.
+
     Only GPS frequencies are allowed because this relies on the repeating ground track.
 
     """
+    e1 = lsp.get('e1', 5)
+    e2 = lsp.get('e2', 25)
+    poly_v = lsp.get('polyV', 4)
+    min_amp = lsp.get('reqAmp', [5.0])[0]
+    noise_region = lsp.get('NReg', [0.5, 8])
+    min_height = lsp.get('minH', 0.5)
+    max_height = lsp.get('maxH', 8)
+    desired_p = lsp.get('desiredP', 0.01)
+    screenstats = lsp.get('screenstats', False)
+    midnite = lsp.get('midnite', False)
+    gzip = lsp.get('gzip', True)
+    compute_lsp = True
 
     # get the SNR filename
     obsfile, obsfilecmp, snrexist = g.define_and_xz_snr(station, year, doy, snr_type)
@@ -846,8 +841,6 @@ def phase_tracks(station, year, doy, snr_type, fr_list, e1, e2, poly_v, min_amp,
                         print(f'Sat {sat_number:3.0f} Azimuth {track_azim:5.1f} RH {rh_apriori:6.2f} {nv:5.0f}')
 
                     if compute_lsp:
-                        desired_p = 0.01
-
                         max_f, max_amp, emin_obs, emax_obs, rise_set, px, pz = g.strip_compute(x, y, cf, max_height,
                                                                                            desired_p, poly_v, min_height)
 
