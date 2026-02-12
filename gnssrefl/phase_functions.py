@@ -761,6 +761,10 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                     })
 
                 # Process each arc from extract_arcs
+                n_total = len(all_arcs)
+                n_filter_track = 0; n_filter_ediff = 0; n_filter_freq = 0
+                n_filter_tooclose = 0; n_filter_noise = 0; n_filter_amp = 0
+                n_filter_pk2noise = 0; n_filter_delT = 0; n_saved = 0
                 for meta, data in all_arcs:
                     sat_number = meta['sat']
                     az_init = meta['az_init']
@@ -774,12 +778,15 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                             break
 
                     if matching_track is None:
+                        n_filter_track += 1
                         continue
 
                     # ediff QC: check arc elevation coverage
                     if (meta['ele_start'] - e1) > ediff:
+                        n_filter_ediff += 1
                         continue
                     if (meta['ele_end'] - e2) < -ediff:
+                        n_filter_ediff += 1
                         continue
 
                     rh_apriori = matching_track['rh_apriori']
@@ -794,64 +801,90 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                     del_t = meta['delT']
 
                     # L2C/L5 satellite checks
-                    compute_lsp = True
                     if (freq == 20) and (sat_number not in l2c_list):
                         if screenstats:
-                            print('Asked for L2C but not L2C transmitting: ', int(sat_number))
-                        compute_lsp = False
+                            print(f'Sat {int(sat_number)} not transmitting L2C on {year}/{doy}')
+                        n_filter_freq += 1
+                        continue
 
                     if (freq == 5) and (sat_number not in l5_list):
                         if screenstats:
-                            print('Asked for L5 but not L5 transmitting: ', int(sat_number))
-                        compute_lsp = False
+                            print(f'Sat {int(sat_number)} not transmitting L5 on {year}/{doy}')
+                        n_filter_freq += 1
+                        continue
 
                     if screenstats:
                         print(f'Sat {sat_number:3.0f} Azimuth {track_azim:5.1f} RH {rh_apriori:6.2f} {nv:5.0f}')
 
-                    if compute_lsp:
-                        max_f, max_amp, emin_obs, emax_obs, rise_set, px, pz = g.strip_compute(x, y, cf, max_height,
-                                                                                           desired_p, poly_v, min_height)
+                    max_f, max_amp, emin_obs, emax_obs, rise_set, px, pz = g.strip_compute(x, y, cf, max_height,
+                                                                                       desired_p, poly_v, min_height)
 
-                        tooclose = False
-                        if (max_f == 0) and (max_amp == 0):
-                            tooclose = True
-                        if abs(max_f - min_height) < 0.10:
-                            tooclose = True
-                        if abs(max_f - max_height) < 0.10:
-                            tooclose = True
+                    tooclose = False
+                    if (max_f == 0) and (max_amp == 0):
+                        tooclose = True
+                    if abs(max_f - min_height) < 0.10:
+                        tooclose = True
+                    if abs(max_f - max_height) < 0.10:
+                        tooclose = True
 
-                        nij = pz[(px > noise_region[0]) & (px < noise_region[1])]
-                        noise = 0
-                        if len(nij) > 0:
-                            noise = np.mean(nij)
-                            obs_pk2noise = max_amp/noise
+                    nij = pz[(px > noise_region[0]) & (px < noise_region[1])]
+                    noise = 0
+                    if len(nij) > 0:
+                        noise = np.mean(nij)
+                        obs_pk2noise = max_amp/noise
 
-                            if screenstats:
-                                print(f'>> LSP RH {max_f:7.3f} m {obs_pk2noise:6.1f} Amp {max_amp:6.1f} {min_amp:6.1f} ')
-                        else:
-                            max_amp = 0
+                        if screenstats:
+                            print(f'>> LSP RH {max_f:7.3f} m {obs_pk2noise:6.1f} Amp {max_amp:6.1f} {min_amp:6.1f} ')
+                    else:
+                        max_amp = 0
 
-                        if (not tooclose) and (max_amp > min_amp) and (max_amp/noise > PkNoise):
-                            if del_t < delTmax:
-                                x_data = np.sin(np.deg2rad(x))
-                                y_data = y
-                                test_function_apriori = partial(test_func_new, rh_apriori=rh_apriori,freq=freq)
-                                params, params_covariance = optimize.curve_fit(test_function_apriori, x_data, y_data, p0=[2, 2])
+                    if tooclose:
+                        n_filter_tooclose += 1
+                        continue
+                    if max_amp == 0:
+                        n_filter_noise += 1
+                        continue
+                    if max_amp <= min_amp:
+                        n_filter_amp += 1
+                        continue
+                    if max_amp / noise <= PkNoise:
+                        n_filter_pk2noise += 1
+                        continue
+                    if del_t >= delTmax:
+                        n_filter_delT += 1
+                        continue
 
-                                phase = params[1]*180/np.pi
-                                min_el = min(x); max_el = max(x)
-                                amp = np.absolute(params[0])
-                                raw_amp = params[0]
-                                if phase > 360:
-                                    phase = phase - 360
-                                    if phase > 360:
-                                        phase = phase - 360
+                    x_data = np.sin(np.deg2rad(x))
+                    y_data = y
+                    test_function_apriori = partial(test_func_new, rh_apriori=rh_apriori,freq=freq)
+                    params, params_covariance = optimize.curve_fit(test_function_apriori, x_data, y_data, p0=[2, 2])
 
-                                if raw_amp < 0:
-                                    phase = phase + 180
+                    phase = params[1]*180/np.pi
+                    min_el = min(x); max_el = max(x)
+                    amp = np.absolute(params[0])
+                    raw_amp = params[0]
+                    if phase > 360:
+                        phase = phase - 360
+                        if phase > 360:
+                            phase = phase - 360
 
-                                result = [[year, doy, utctime, phase, nv, avg_azim, sat_number, amp, min_el, max_el, del_t, rh_apriori, freq, max_f, obs_pk2noise, max_amp]]
-                                np.savetxt(my_file, result, fmt="%4.0f %3.0f %6.2f %8.3f %5.0f %6.1f %3.0f %5.2f %5.2f %5.2f %6.2f %5.3f %2.0f %6.3f %6.2f %6.2f", comments="%")
+                    if raw_amp < 0:
+                        phase = phase + 180
+
+                    result = [[year, doy, utctime, phase, nv, avg_azim, sat_number, amp, min_el, max_el, del_t, rh_apriori, freq, max_f, obs_pk2noise, max_amp]]
+                    np.savetxt(my_file, result, fmt="%4.0f %3.0f %6.2f %8.3f %5.0f %6.1f %3.0f %5.2f %5.2f %5.2f %6.2f %5.3f %2.0f %6.3f %6.2f %6.2f", comments="%")
+                    n_saved += 1
+
+                if screenstats:
+                    after_track = n_total - n_filter_track
+                    after_ediff = after_track - n_filter_ediff
+                    after_freq = after_ediff - n_filter_freq
+                    after_tooclose = after_freq - n_filter_tooclose
+                    after_noise = after_tooclose - n_filter_noise
+                    after_amp = after_noise - n_filter_amp
+                    after_pk2noise = after_amp - n_filter_pk2noise
+                    print(f'Freq {freq}: {n_total} arcs -> track {after_track} -> ediff {after_ediff} -> L2C/L5 {after_freq} -> tooclose {after_tooclose} -> noise {after_noise} -> amp {after_amp} -> pk2noise {after_pk2noise} -> delT {n_saved} saved')
+
         # gzip SNR file if requested
         if gzip:
             subprocess.call(['gzip', obsfile])
