@@ -739,7 +739,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
     PkNoise = lsp.get('PkNoise', 3)
     ediff = lsp.get('ediff', 2)
     screenstats = lsp.get('screenstats', False)
-    midnite = lsp.get('midnite', False)
+    midnite = lsp.get('midnite', True)
     gzip = lsp.get('gzip', True)
     compute_lsp = True
 
@@ -759,10 +759,8 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
         print(f"Saving phase file to: {output_path}")
         with open(output_path, 'w') as my_file:
             np.savetxt(my_file, [], header=header, comments='%')
-            # Use buffer_hours to load adjacent day data when midnite option is enabled
+            # Load adjacent day data for midnight-crossing arcs (default: on)
             buffer_hours = 2 if midnite else 0
-            if midnite:
-                print('Midnite option enabled: loading +/- 2 hours from adjacent days')
             allGood, snrD, nrows, ncols = snr.read_snr(obsfile, buffer_hours=buffer_hours, screenstats=screenstats)
             if not allGood:
                 print(f'Problem reading SNR file: {obsfile}')

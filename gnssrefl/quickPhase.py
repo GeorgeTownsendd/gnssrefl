@@ -27,7 +27,7 @@ def parse_arguments():
     parser.add_argument("-screenstats", default=None, type=str, help="stats come to the screen")
     parser.add_argument("-gzip", default=None, type=str, help="gzip SNR files after use, default is True" )
     parser.add_argument("-par", default=None, type=int, help="Number of processes to spawn (up to 10)")
-    parser.add_argument("-midnite", default=None, type=str, help="allow midnite crossings (default is false)")
+    parser.add_argument("-midnite", default=None, type=str, help="load adjacent day data for midnight-crossing arcs (default is true)")
     parser.add_argument("-ampl", default=None, type=float, help="Min spectral amplitude")
 
     args = parser.parse_args().__dict__
@@ -41,7 +41,7 @@ def parse_arguments():
 
 
 def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end: int = None, snr: int = 66,
-        fr: str = None, e1: float = None, e2: float = None, plt: bool = False, screenstats: bool = False, gzip: bool = True, extension: str = '', par: int = None, midnite: bool = False, ampl: float = None):
+        fr: str = None, e1: float = None, e2: float = None, plt: bool = False, screenstats: bool = False, gzip: bool = True, extension: str = '', par: int = None, midnite: bool = True, ampl: float = None):
     """
     quickphase computes phase, which are subquently used in vwc. The command line call is phase
     (which maybe we should change).
