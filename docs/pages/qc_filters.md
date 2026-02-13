@@ -8,8 +8,7 @@ accepting results. This page documents every filter and its default threshold.
 
 | Filter | Rejects when | Json key | Default |
 |--------|-------------|----------|---------|
-| ediff: start | `min_elevation - e1 > ediff` | `ediff` | 2 deg |
-| ediff: end | `e2 - max_elevation > ediff` | `ediff` | 2 deg |
+| ediff | Arc doesn't cover nearly the full [e1, e2] elevation range: requires emin ≤ e1 + ediff and emax ≥ e2 - ediff. With the default ediff=2 and e1=5, e2=25, an arc needs emin ≤ 7° and emax ≥ 23°. | `ediff` | 2 deg |
 | tooclose | LSP peak RH is within 0.10 m of `minH` or `maxH`, or LSP returned no result | `minH`, `maxH` | 0.5, 8 m |
 | No noise data | Noise region `[NReg[0], NReg[1]]` doesn't overlap with `[minH, maxH]` | `NReg` | [0.5, 8] m |
 | Amplitude | `peak_amplitude <= reqAmp` | `reqAmp` | 5.0 |
@@ -17,6 +16,7 @@ accepting results. This page documents every filter and its default threshold.
 | Arc duration | `arc_duration >= delTmax` | `delTmax` | 75 min |
 
 All defaults are set by `gnssir_input` and stored in the station json file.
+
 
 ## Phase-only filters
 
