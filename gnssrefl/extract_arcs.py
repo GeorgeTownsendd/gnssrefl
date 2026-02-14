@@ -21,11 +21,253 @@ from gnssrefl.read_snr_files import read_snr
 # Constants
 GAP_TIME_LIMIT = 600  # seconds (10 minutes)
 MIN_ARC_POINTS = 20
+RESULT_COLUMNS = [
+    'year', 'doy', 'RH', 'sat', 'UTCtime', 'Azim', 'Amp',
+    'eminO', 'emaxO', 'NumbOf', 'freq', 'rise', 'EdotF',
+    'PkNoise', 'DelT', 'MJD', 'refr',
+]
+PHASE_COLUMNS = [
+    'year', 'doy', 'Hour', 'Phase', 'Nv', 'Azimuth', 'Sat', 'Ampl',
+    'emin', 'emax', 'DelT', 'aprioriRH', 'freq', 'estRH', 'pk2noise', 'LSPAmp',
+]
 
 def _get_available_freqs(ncols):
     """Return one canonical freq code per SNR column present in the file."""
     _column_to_freq = {6: 206, 7: 1, 8: 2, 9: 5, 10: 207, 11: 208}
     return [f for col, f in sorted(_column_to_freq.items()) if col <= ncols]
+
+
+def _resolve_data_file(station, year, doy, data_type='results', extension=''):
+    """Resolve path to a gnssir data file (results or phase).
+
+    Parameters
+    ----------
+    station : str
+        Station name
+    year : int
+        Year
+    doy : int
+        Day of year
+    data_type : str
+        Type of data file: ``'results'`` or ``'phase'``.
+    extension : str
+        Optional subdirectory under the station folder
+
+    Returns
+    -------
+    str or None
+        Path if file exists, None otherwise
+    """
+    refl_code = os.environ.get('REFL_CODE', '')
+    if not refl_code:
+        return None
+    parts = [refl_code, str(year), data_type, station]
+    if extension:
+        parts.append(extension)
+    parts.append(f'{doy:03d}.txt')
+    path = os.path.join(*parts)
+    return path if os.path.isfile(path) else None
+
+
+def _load_result_file(path):
+    """Load a gnssir result file into a 2-D numpy array.
+
+    Parameters
+    ----------
+    path : str
+        Path to the result file
+
+    Returns
+    -------
+    np.ndarray
+        2-D array with shape (N, 17+)
+    """
+    data = np.loadtxt(path, comments='%')
+    if data.size == 0:
+        return None
+    if data.ndim == 1:
+        data = data.reshape(1, -1)
+    return data
+
+
+def attach_gnssir_processing_results(
+    arcs: List[Tuple[Dict, Dict]],
+    results: Union[str, np.ndarray],
+    time_tolerance: float = 0.17,
+) -> List[Tuple[Dict, Dict]]:
+    """Attach gnssir processing results to extracted arcs.
+
+    For each arc, finds the matching row in the gnssir result file based on
+    satellite number, frequency, rise/set direction, and UTC time proximity.
+    The matched result is stored in ``metadata['gnssir_processing_results']``
+    as a dict, or ``None`` if no match is found.
+
+    Parameters
+    ----------
+    arcs : list of (metadata, data) tuples
+        Output from ``extract_arcs()`` or related functions.
+    results : str or np.ndarray
+        Either a path to a gnssir result file, or a 2-D numpy array already
+        loaded from one (N rows x 17+ columns, see ``RESULT_COLUMNS``).
+    time_tolerance : float
+        Maximum allowed difference in hours between the arc timestamp and the
+        result UTCtime for a match. Default 0.02 (~72 seconds).
+
+    Returns
+    -------
+    list of (metadata, data) tuples
+        Same arcs with ``metadata['gnssir_processing_results']`` added.
+    """
+    if isinstance(results, str):
+        results = _load_result_file(results)
+
+    if results is None:
+        for metadata, _data in arcs:
+            metadata['gnssir_processing_results'] = None
+        return arcs
+
+    # Pre-index columns
+    COL_SAT = RESULT_COLUMNS.index('sat')       # 3
+    COL_UTC = RESULT_COLUMNS.index('UTCtime')    # 4
+    COL_FREQ = RESULT_COLUMNS.index('freq')      # 10
+    COL_RISE = RESULT_COLUMNS.index('rise')      # 11
+
+    # Build lookup: (sat, freq, rise) -> list of (row_index, utctime)
+    lookup: Dict[Tuple[int, int, int], List[Tuple[int, float]]] = {}
+    for i in range(results.shape[0]):
+        key = (int(results[i, COL_SAT]),
+               int(results[i, COL_FREQ]),
+               int(results[i, COL_RISE]))
+        lookup.setdefault(key, []).append((i, results[i, COL_UTC]))
+
+    # Fields to extract from result row
+    result_fields = {
+        'RH': (RESULT_COLUMNS.index('RH'), float),
+        'Amp': (RESULT_COLUMNS.index('Amp'), float),
+        'PkNoise': (RESULT_COLUMNS.index('PkNoise'), float),
+        'MJD': (RESULT_COLUMNS.index('MJD'), float),
+        'UTCtime': (COL_UTC, float),
+        'Azim': (RESULT_COLUMNS.index('Azim'), float),
+        'eminO': (RESULT_COLUMNS.index('eminO'), float),
+        'emaxO': (RESULT_COLUMNS.index('emaxO'), float),
+        'NumbOf': (RESULT_COLUMNS.index('NumbOf'), int),
+        'DelT': (RESULT_COLUMNS.index('DelT'), float),
+        'EdotF': (RESULT_COLUMNS.index('EdotF'), float),
+        'refr': (RESULT_COLUMNS.index('refr'), int),
+        'rise': (COL_RISE, int),
+    }
+
+    for metadata, data in arcs:
+        arc_rise = 1 if metadata['arc_type'] == 'rising' else -1
+        key = (metadata['sat'], metadata['freq'], arc_rise)
+        candidates = lookup.get(key, [])
+
+        arc_utc = metadata['arc_timestamp']  # hours
+        best_idx = None
+        best_dt = time_tolerance
+
+        for row_idx, utctime in candidates:
+            dt = abs(utctime - arc_utc)
+            if dt < best_dt:
+                best_dt = dt
+                best_idx = row_idx
+
+        if best_idx is not None:
+            row = results[best_idx]
+            metadata['gnssir_processing_results'] = {
+                name: typ(row[col]) for name, (col, typ) in result_fields.items()
+            }
+        else:
+            metadata['gnssir_processing_results'] = None
+
+    return arcs
+
+
+def attach_phase_processing_results(
+    arcs: List[Tuple[Dict, Dict]],
+    results: Union[str, np.ndarray],
+    time_tolerance: float = 0.17,
+) -> List[Tuple[Dict, Dict]]:
+    """Attach phase processing results to extracted arcs.
+
+    For each arc, finds the matching row in the phase result file based on
+    satellite number, frequency, and UTC time proximity.
+    The matched result is stored in ``metadata['phase_processing_results']``
+    as a dict, or ``None`` if no match is found.
+
+    Parameters
+    ----------
+    arcs : list of (metadata, data) tuples
+        Output from ``extract_arcs()`` or related functions.
+    results : str or np.ndarray
+        Either a path to a phase result file, or a 2-D numpy array already
+        loaded from one (N rows x 16 columns, see ``PHASE_COLUMNS``).
+    time_tolerance : float
+        Maximum allowed difference in hours between the arc timestamp and the
+        phase Hour for a match. Default 0.02 (~72 seconds).
+
+    Returns
+    -------
+    list of (metadata, data) tuples
+        Same arcs with ``metadata['phase_processing_results']`` added.
+    """
+    if isinstance(results, str):
+        results = _load_result_file(results)
+
+    if results is None:
+        for metadata, _data in arcs:
+            metadata['phase_processing_results'] = None
+        return arcs
+
+    # Pre-index columns
+    COL_SAT = PHASE_COLUMNS.index('Sat')        # 6
+    COL_HOUR = PHASE_COLUMNS.index('Hour')       # 2
+    COL_FREQ = PHASE_COLUMNS.index('freq')       # 12
+
+    # Build lookup: (sat, freq) -> list of (row_index, hour)
+    lookup: Dict[Tuple[int, int], List[Tuple[int, float]]] = {}
+    for i in range(results.shape[0]):
+        key = (int(results[i, COL_SAT]), int(results[i, COL_FREQ]))
+        lookup.setdefault(key, []).append((i, results[i, COL_HOUR]))
+
+    # Fields to extract from phase row
+    phase_fields = {
+        'Phase': (PHASE_COLUMNS.index('Phase'), float),
+        'Nv': (PHASE_COLUMNS.index('Nv'), int),
+        'Azimuth': (PHASE_COLUMNS.index('Azimuth'), float),
+        'Ampl': (PHASE_COLUMNS.index('Ampl'), float),
+        'emin': (PHASE_COLUMNS.index('emin'), float),
+        'emax': (PHASE_COLUMNS.index('emax'), float),
+        'DelT': (PHASE_COLUMNS.index('DelT'), float),
+        'aprioriRH': (PHASE_COLUMNS.index('aprioriRH'), float),
+        'estRH': (PHASE_COLUMNS.index('estRH'), float),
+        'pk2noise': (PHASE_COLUMNS.index('pk2noise'), float),
+        'LSPAmp': (PHASE_COLUMNS.index('LSPAmp'), float),
+    }
+
+    for metadata, data in arcs:
+        key = (metadata['sat'], metadata['freq'])
+        candidates = lookup.get(key, [])
+
+        arc_utc = metadata['arc_timestamp']  # hours
+        best_idx = None
+        best_dt = time_tolerance
+
+        for row_idx, hour in candidates:
+            dt = abs(hour - arc_utc)
+            if dt < best_dt:
+                best_dt = dt
+                best_idx = row_idx
+
+        if best_idx is not None:
+            row = results[best_idx]
+            metadata['phase_processing_results'] = {
+                name: typ(row[col]) for name, (col, typ) in phase_fields.items()
+            }
+        else:
+            metadata['phase_processing_results'] = None
+
+    return arcs
 
 
 def extract_arcs_from_station(
@@ -35,6 +277,8 @@ def extract_arcs_from_station(
     freq: Optional[Union[int, List[int]]] = None,
     snr_type: int = 66,
     buffer_hours: float = 0,
+    attach_results: bool = False,
+    extension: str = '',
     **kwargs,
 ) -> List[Tuple[Dict[str, Any], Dict[str, np.ndarray]]]:
     """
@@ -60,6 +304,17 @@ def extract_arcs_from_station(
     buffer_hours : float
         Hours of data to include from adjacent days for midnight-crossing arcs.
         Default: 0 (single day only)
+    attach_results : bool
+        If True, look up the gnssir result file and phase result file, attaching
+        processing results to each arc's metadata via
+        ``attach_gnssir_processing_results()`` and
+        ``attach_phase_processing_results()``. Arcs with no matching result get
+        ``gnssir_processing_results = None`` and/or
+        ``phase_processing_results = None``. Default: False
+    extension : str
+        Subdirectory under ``$REFL_CODE/<year>/results/<station>/`` where
+        result files are stored (e.g. ``'gnssir'``). Only used when
+        *attach_results* is True. Default: ``''`` (no subdirectory)
     **kwargs
         Additional keyword arguments passed to ``extract_arcs()``
         (e1, e2, azlist, sat_list, etc.)
@@ -81,7 +336,24 @@ def extract_arcs_from_station(
             f"SNR file not found for station={station}, year={year}, "
             f"doy={doy}, snr_type={snr_type}: {obsfile}"
         )
-    return extract_arcs_from_file(obsfile, freq, buffer_hours=buffer_hours, **kwargs)
+    arcs = extract_arcs_from_file(obsfile, freq, buffer_hours=buffer_hours, **kwargs)
+
+    if attach_results:
+        result_path = _resolve_data_file(station, year, doy, 'results', extension)
+        if result_path is not None:
+            attach_gnssir_processing_results(arcs, result_path)
+        else:
+            for metadata, _data in arcs:
+                metadata['gnssir_processing_results'] = None
+
+        phase_path = _resolve_data_file(station, year, doy, 'phase', extension)
+        if phase_path is not None:
+            attach_phase_processing_results(arcs, phase_path)
+        else:
+            for metadata, _data in arcs:
+                metadata['phase_processing_results'] = None
+
+    return arcs
 
 
 def extract_arcs_from_file(
