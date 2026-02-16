@@ -31,10 +31,29 @@ PHASE_COLUMNS = [
     'emin', 'emax', 'DelT', 'aprioriRH', 'freq', 'estRH', 'pk2noise', 'LSPAmp',
 ]
 
-def _get_available_freqs(ncols):
-    """Return one canonical freq code per SNR column present in the file."""
-    _column_to_freq = {6: 206, 7: 1, 8: 20, 9: 5, 10: 207, 11: 208}
-    return [f for col, f in sorted(_column_to_freq.items()) if col <= ncols]
+# (snr_column, constellation_offset) -> user-facing freq code
+# Constellation offset derived from sat number: GPS=0, GLONASS=100, Galileo=200, Beidou=300
+_COL_CONST_TO_FREQ = {
+    (6, 200): 206, (6, 300): 306,
+    (7, 0): 1, (7, 100): 101, (7, 200): 201, (7, 300): 301,
+    (8, 0): 20, (8, 100): 102, (8, 300): 302,
+    (9, 0): 5, (9, 200): 205, (9, 300): 305,
+    (10, 200): 207, (10, 300): 307,
+    (11, 200): 208, (11, 300): 308,
+}
+_SNR_COLUMNS = [6, 7, 8, 9, 10, 11]
+
+
+def _freq_for_column_and_sat(column, sat, l2c_sats=None, l5_sats=None):
+    """Map (SNR column, sat number) to user-facing freq code. Returns None if invalid."""
+    offset = (sat // 100) * 100
+    # GPS special cases: L2C vs legacy L2, and L5 transmit check
+    if offset == 0:
+        if column == 8:
+            return 20 if (l2c_sats is None or sat in l2c_sats) else 2
+        if column == 9 and l5_sats is not None and sat not in l5_sats:
+            return None
+    return _COL_CONST_TO_FREQ.get((column, offset))
 
 
 def _resolve_data_file(station, year, doy, data_type='results', extension=''):
@@ -336,7 +355,7 @@ def extract_arcs_from_station(
             f"SNR file not found for station={station}, year={year}, "
             f"doy={doy}, snr_type={snr_type}: {obsfile}"
         )
-    arcs = extract_arcs_from_file(obsfile, freq, buffer_hours=buffer_hours, **kwargs)
+    arcs = extract_arcs_from_file(obsfile, freq, buffer_hours=buffer_hours, year=year, doy=doy, **kwargs)
 
     if attach_results:
         result_path = _resolve_data_file(station, year, doy, 'results', extension)
@@ -422,6 +441,8 @@ def extract_arcs(
     detrend: bool = True,
     split_arcs: bool = True,
     filter_to_day: bool = True,
+    year: Optional[int] = None,
+    doy: Optional[int] = None,
 ) -> List[Tuple[Dict[str, Any], Dict[str, np.ndarray]]]:
     """
     Extract satellite arcs from SNR data array.
@@ -469,6 +490,12 @@ def extract_arcs(
         when processing consecutive days with buffer_hours. Arc data may still
         extend beyond day boundaries. If False, return all arcs regardless of
         their midpoint time.
+    year : int, optional
+        Full year (e.g. 2025). Used with *doy* to determine which GPS satellites
+        transmit L2C and L5 signals. If not provided, all GPS satellites on
+        column 8 are assumed L2C.
+    doy : int, optional
+        Day of year (1-366). See *year*.
 
     Returns
     -------
@@ -483,32 +510,34 @@ def extract_arcs(
 
     ncols = snr_array.shape[1]
 
-    # Normalise freq to a list
-    if freq is None:
-        freq_list = _get_available_freqs(ncols)
-    elif isinstance(freq, int):
-        freq_list = [freq]
+    # Build column list and per-column freq/constellation info
+    freq_list = [freq] if isinstance(freq, int) else (list(freq) if freq is not None else None)
+    if freq_list is not None:
+        column_list = [_get_snr_column(f) for f in freq_list]
+        # Explicit freqs: record freq and target constellation per column
+        explicit = {_get_snr_column(f): (f, (f // 100) * 100) for f in freq_list}
     else:
-        freq_list = list(freq)
+        column_list = [c for c in _SNR_COLUMNS if c <= ncols]
+        explicit = None
+
+    # L2C/L5 satellite sets for GPS freq assignment
+    l2c_sats = l5_sats = None
+    if year is not None and doy is not None:
+        from gnssrefl.gps import l2c_l5_list
+        l2c_arr, l5_arr = l2c_l5_list(year, doy)
+        l2c_sats = set(int(s) for s in l2c_arr)
+        l5_sats = set(int(s) for s in l5_arr)
 
     all_arcs = []
 
-    for freq_i in freq_list:
-        # Get SNR column for this frequency
-        try:
-            column = _get_snr_column(freq_i)
-        except ValueError as e:
-            if screenstats:
-                print(f"Warning: {e}")
-            continue
-
+    for column in column_list:
         # Convert to 0-based index
         icol = column - 1
 
         # Check if column exists
         if column > ncols:
             if screenstats:
-                print(f"Warning: SNR file has {ncols} columns, need column {column} for freq {freq_i}")
+                print(f"Warning: SNR file has {ncols} columns, need column {column}")
             continue
 
         # Extract columns
@@ -531,6 +560,17 @@ def extract_arcs(
             print(f'Using {len(elev_pairs)} elevation angle ranges: {elev_pairs}')
 
         for sat in unique_sats:
+            # Determine freq code for this column + satellite
+            if explicit is not None:
+                exp_freq, exp_const = explicit[column]
+                if (sat // 100) * 100 != exp_const:
+                    continue  # wrong constellation for this freq
+                sat_freq = exp_freq
+            else:
+                sat_freq = _freq_for_column_and_sat(column, sat, l2c_sats, l5_sats)
+                if sat_freq is None:
+                    continue
+
             sat_mask = sats == sat
 
             if np.sum(sat_mask) < min_pts:
@@ -569,7 +609,7 @@ def extract_arcs(
                     nonzero_mask = arc_snr > 1
                     if np.sum(nonzero_mask) < min_pts:
                         if screenstats:
-                            print(f"No useful data on frequency {freq_i} / sat {sat}: all zeros")
+                            print(f"No useful data on frequency {sat_freq} / sat {sat}: all zeros")
                         continue
 
                     arc_ele = arc_ele[nonzero_mask]
@@ -631,7 +671,7 @@ def extract_arcs(
                     # Compute metadata using filtered data
                     metadata = _compute_arc_metadata(
                         final_ele, final_azi, final_seconds,
-                        sat, freq_i, arc_num,
+                        sat, sat_freq, arc_num,
                     )
 
                     # Create data dictionary
