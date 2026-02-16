@@ -33,7 +33,7 @@ PHASE_COLUMNS = [
 
 def _get_available_freqs(ncols):
     """Return one canonical freq code per SNR column present in the file."""
-    _column_to_freq = {6: 206, 7: 1, 8: 2, 9: 5, 10: 207, 11: 208}
+    _column_to_freq = {6: 206, 7: 1, 8: 20, 9: 5, 10: 207, 11: 208}
     return [f for col, f in sorted(_column_to_freq.items()) if col <= ncols]
 
 
