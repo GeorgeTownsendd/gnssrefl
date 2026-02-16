@@ -357,6 +357,18 @@ def extract_arcs_from_station(
         )
     arcs = extract_arcs_from_file(obsfile, freq, buffer_hours=buffer_hours, year=year, doy=doy, **kwargs)
 
+    if attach_results and extension:
+        refl_code = os.environ.get('REFL_CODE', '')
+        if refl_code:
+            res_dir = os.path.join(refl_code, str(year), 'results', station, extension)
+            phase_dir = os.path.join(refl_code, str(year), 'phase', station, extension)
+            if not os.path.isdir(res_dir) and not os.path.isdir(phase_dir):
+                raise FileNotFoundError(
+                    f"Extension directory '{extension}' not found under "
+                    f"{os.path.join(refl_code, str(year), 'results', station)} or "
+                    f"{os.path.join(refl_code, str(year), 'phase', station)}"
+                )
+
     if attach_results:
         result_path = _resolve_data_file(station, year, doy, 'results', extension)
         if result_path is not None:
