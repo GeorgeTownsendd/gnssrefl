@@ -3,6 +3,7 @@ import json
 import numpy as np
 import os
 import sys
+from scipy.stats import skew, kurtosis as scipy_kurtosis
 
 from pathlib import Path
 
@@ -177,6 +178,13 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
                                               & (azimuth_gnssir_results < azimuth_max)
                                               & (satellite_gnssir_results == satellite)]
             if (len(reflector_heights) > min_tracks):
+                # Exclude bimodal RH distributions (high BC + low kurtosis)
+                kurt = scipy_kurtosis(reflector_heights, fisher=False)
+                bc = (skew(reflector_heights)**2 + 1) / kurt if kurt > 0 else 0
+                if bc > 0.9 and kurt < 3:
+                    print(f'  Excluding bimodal track: sat {satellite:2.0f} az {azimuth_min}-{azimuth_max} (BC={bc:.3f}, n={len(reflector_heights)})')
+                    continue
+
                 b = b+1
                 average_azimuth = np.mean(azimuths)
                 #print("{0:3.0f} {1:5.2f} {2:2.0f} {3:7.2f} {4:3.0f} {5:3.0f} {6:3.0f} ".format(b, np.mean(reflector_heights), satellite, average_azimuth, len(reflector_heights),azimuth_min,azimuth_max))
