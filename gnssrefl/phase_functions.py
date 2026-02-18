@@ -562,7 +562,7 @@ def read_apriori_rh(station, fr, extension=''):
         else:
             print(f'Using RH file: {apriori_path_f}')
     else:
-        print('Average RH file does not exist. Please run vwc_input first.')
+        print('Tried to access an apriori RH file that does not exist. Please run vwc_input.')
         sys.exit()
 
     # column 2 is RH, 3 is sat, 4 is azimuth, 5 is number of values
@@ -730,13 +730,13 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
     e1 = lsp.get('e1', 5)
     e2 = lsp.get('e2', 25)
     poly_v = lsp.get('polyV', 4)
-    min_amp = lsp.get('reqAmp', [5.0])[0]
+    min_amp = lsp.get('reqAmp', [6])[0]
     noise_region = lsp.get('NReg', [0.5, 8])
     min_height = lsp.get('minH', 0.5)
     max_height = lsp.get('maxH', 8)
     desired_p = lsp.get('desiredP', 0.01)
     delTmax = lsp.get('delTmax', 120)
-    PkNoise = lsp.get('PkNoise', 3)
+    PkNoise = lsp.get('PkNoise', 2.8)
     ediff = lsp.get('ediff', 2)
     screenstats = lsp.get('screenstats', False)
     midnite = lsp.get('midnite', True)
@@ -916,7 +916,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                 after_noise = after_tooclose - n_filter_noise
                 after_amp = after_noise - n_filter_amp
                 after_pk2noise = after_amp - n_filter_pk2noise
-                qc_lines.append(f'Freq {freq} QC: {n_total} arcs -> track {after_track} -> ediff {after_ediff} -> L2C/L5 {after_freq} -> amp {after_amp} -> pk2noise {after_pk2noise} -> delT {n_saved} saved')
+                qc_lines.append(f'Freq {freq} QC: {n_total} arcs -> track {after_track} -> ediff {after_ediff} -> L2C/L5 {after_freq} -> tooclose {after_tooclose} -> noise {after_noise} -> amp {after_amp} -> pk2noise {after_pk2noise} -> delT {n_saved} saved')
 
             if all_results:
                 all_results.sort(key=lambda r: r[2])  # sort by hour

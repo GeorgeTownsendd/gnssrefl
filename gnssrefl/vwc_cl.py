@@ -252,6 +252,10 @@ def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool
     # load past VWC analysis  for QC
     avg_exist, avg_date, avg_phase = qp.load_avg_phase(station,freq,bin_hours,extension,bin_offset)
 
+    # pick up the tracks you will use to compute phase.  THis was previously
+    # created by vwc_input ... Check this early before loading all phase data.
+    tracks = qp.read_apriori_rh(station, freq, extension)
+
     # pick up all the phase data. unwrapped phase is stored in the results variable
     data_exist, year_sat_phase, doy, hr, phase, azdata, ssat, rh, amp_lsp,amp_ls,ap_rh, results = \
             qp.load_phase_filter_out_snow(station, year, year_end, fr,snow_file, extension)
@@ -263,10 +267,6 @@ def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool
 
     # using unwrapped phase instead of raw phase
     phase = results[17,:]
-    
-    # pick up the tracks you will use to compute phase.  THis was previously
-    # created by vwc_input ...
-    tracks = qp.read_apriori_rh(station, freq, extension)
     nr = len(tracks[:,1])
 
     if (minvalperbin > nr ):
