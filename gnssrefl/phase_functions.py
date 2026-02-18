@@ -1799,6 +1799,9 @@ def set_parameters(station, level_doys,minvalperday,tmin,tmax,min_req_pts_track,
     else:
         lsp = gnssir.read_json_file(station, extension,noexit=True, silent=True)
 
+    if not lsp:
+        print(f'No json input file found for {station}. Please create one with gnssir_input.')
+        sys.exit()
 
     # this used to be in convert_phase function.  Now will set doy limits in this function
     if lsp['lat'] >= 0:
