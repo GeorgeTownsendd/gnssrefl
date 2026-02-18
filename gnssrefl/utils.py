@@ -495,6 +495,17 @@ def set_environment(refl_code, orbits, exe):
           '\nenvironment variable EXE set to path', os.environ['EXE'])
 
 
+def format_qc_summary(freq, n_total, filters, n_saved):
+    """Build condensed QC summary showing only filters that rejected arcs."""
+    parts = [f'Freq {freq} quality control: {n_total} arcs']
+    running = n_total
+    for name, n_rejected in filters:
+        if n_rejected > 0:
+            running -= n_rejected
+            parts.append(f'{name} {running}')
+    parts.append(f'{n_saved} saved')
+    return ' -> '.join(parts)
+
 def get_sys():
     system = platform.platform().lower()
     valid_os = ['linux64', 'macos']

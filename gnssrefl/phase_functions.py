@@ -6,7 +6,7 @@ import sys
 
 
 import gnssrefl.gps as g
-from gnssrefl.utils import FileManagement, FileTypes
+from gnssrefl.utils import FileManagement, FileTypes, format_qc_summary
 import gnssrefl.daily_avg_cl as da
 import gnssrefl.gnssir_v2 as gnssir
 import gnssrefl.read_snr_files as snr
@@ -909,21 +909,20 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                     all_results.append([year, doy, utctime, phase, nv, avg_azim, sat_number, amp, min_el, max_el, del_t, rh_apriori, freq, max_f, obs_pk2noise, max_amp])
                     n_saved += 1
 
-                after_track = n_total - n_filter_track
-                after_ediff = after_track - n_filter_ediff
-                after_freq = after_ediff - n_filter_freq
-                after_tooclose = after_freq - n_filter_tooclose
-                after_noise = after_tooclose - n_filter_noise
-                after_amp = after_noise - n_filter_amp
-                after_pk2noise = after_amp - n_filter_pk2noise
-                qc_lines.append(f'Freq {freq} QC: {n_total} arcs -> track {after_track} -> ediff {after_ediff} -> L2C/L5 {after_freq} -> tooclose {after_tooclose} -> noise {after_noise} -> amp {after_amp} -> pk2noise {after_pk2noise} -> delT {n_saved} saved')
+                qc_filters = [
+                    ('track', n_filter_track), ('ediff', n_filter_ediff),
+                    ('L2C/L5', n_filter_freq), ('tooclose', n_filter_tooclose),
+                    ('noise', n_filter_noise), ('amp', n_filter_amp),
+                    ('pk2noise', n_filter_pk2noise), ('delT', n_filter_delT),
+                ]
+                qc_lines.append(format_qc_summary(freq, n_total, qc_filters, n_saved))
 
             if all_results:
                 all_results.sort(key=lambda r: r[2])  # sort by hour
                 np.savetxt(my_file, all_results, fmt="%4.0f %3.0f %6.2f %8.3f %5.0f %6.1f %3.0f %5.2f %5.2f %5.2f %6.2f %5.3f %2.0f %6.3f %6.2f %6.2f", comments="%")
 
             if qc_lines:
-                print('\n' + '\n'.join(qc_lines))
+                print('\n'.join(qc_lines))
 
         # gzip SNR file if requested
         if gzip:

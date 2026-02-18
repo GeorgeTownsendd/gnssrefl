@@ -6,7 +6,7 @@ import sys
 
 import gnssrefl.gnssir_v2 as guts
 import gnssrefl.gps as g
-from gnssrefl.utils import FileManagement
+from gnssrefl.utils import FileManagement, format_qc_summary
 
 def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,logfilename,dbhz):
     """
@@ -238,15 +238,17 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
                         failed = True
                         guts.local_update_plot(x,y,px,pz,ax1,ax2,failed)
 
-            after_ediff = n_total - n_filter_ediff
-            after_tooclose = after_ediff - n_filter_tooclose
-            after_amp = after_tooclose - n_filter_amp
-            after_pk2noise = after_amp - n_filter_pk2noise
-            qc_lines.append(f'Freq {f} QC: {n_total} arcs -> ediff {after_ediff} -> tooclose {after_tooclose} -> amp {after_amp} -> pk2noise {after_pk2noise} -> delT {gj} saved')
+            qc_filters = [
+                ('ediff', n_filter_ediff), ('tooclose', n_filter_tooclose),
+                ('amp', n_filter_amp), ('pk2noise', n_filter_pk2noise),
+                ('delT', n_filter_delT),
+            ]
+            qc_line = format_qc_summary(f, n_total, qc_filters, gj)
+            qc_lines.append(qc_line)
             if screenstats:
                 logid.write('=================================================================================\n')
                 logid.write('     Frequency  {0:3.0f}   good arcs: {1:3.0f}  rejected arcs: {2:3.0f} \n'.format( f, gj, rj))
-                logid.write(f'Freq {f} QC: {n_total} arcs -> ediff {after_ediff} -> tooclose {after_tooclose} -> amp {after_amp} -> pk2noise {after_pk2noise} -> delT {gj} saved\n')
+                logid.write(qc_line + '\n')
                 logid.write('=================================================================================\n')
             total_arcs = gj + total_arcs
 # close the output files
@@ -308,4 +310,4 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
                 subprocess.call(['rm', '-f',lspname])
 
         if qc_lines:
-            print('\n' + '\n'.join(qc_lines))
+            print('\n'.join(qc_lines))
