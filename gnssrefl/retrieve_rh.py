@@ -137,7 +137,7 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
 
             # Extract arcs
             from gnssrefl.extract_arcs import extract_arcs
-            arcs = extract_arcs(snrD, freq=f, e1=e1, e2=e2, ellist=ellist, azlist=azvalues, sat_list=satlist, polyV=lsp['polyV'], dbhz=dbhz)
+            arcs = extract_arcs(snrD, freq=f, e1=e1, e2=e2, ellist=ellist, azlist=azvalues, sat_list=satlist, polyV=lsp['polyV'], pele=pele, dbhz=dbhz)
 
             # Process each arc
             n_total = len(arcs)

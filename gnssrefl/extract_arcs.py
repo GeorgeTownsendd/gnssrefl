@@ -448,6 +448,7 @@ def extract_arcs(
     sat_list: Optional[List[int]] = None,
     min_pts: int = MIN_ARC_POINTS,
     polyV: int = 4,
+    pele: Optional[List[float]] = None,
     dbhz: bool = False,
     screenstats: bool = False,
     detrend: bool = True,
@@ -637,7 +638,7 @@ def extract_arcs(
 
                     # Process SNR: either detrend or just convert to linear units
                     if detrend:
-                        arc_snr_processed = _remove_dc_component(arc_ele, arc_snr, polyV, dbhz)
+                        arc_snr_processed = _remove_dc_component(arc_ele, arc_snr, polyV, dbhz, pele)
                     else:
                         # Just convert to linear units, no detrending
                         if dbhz:
@@ -909,6 +910,7 @@ def _remove_dc_component(
     snr: np.ndarray,
     polyV: int,
     dbhz: bool,
+    pele: Optional[List[float]] = None,
 ) -> np.ndarray:
     """
     Remove direct signal component via polynomial fit.
@@ -923,6 +925,10 @@ def _remove_dc_component(
         Polynomial order for DC removal
     dbhz : bool
         If True, keep SNR in dB-Hz; if False, convert to linear units first
+    pele : list of float, optional
+        Elevation angle range [min, max] for polynomial fit.
+        If provided, the polynomial is fit on data within this range
+        but evaluated (and removed) over the full arc.
 
     Returns
     -------
@@ -935,8 +941,15 @@ def _remove_dc_component(
     if not dbhz:
         data = np.power(10, (data / 20))
 
-    # Fit and remove polynomial
-    model = np.polyfit(ele, data, polyV)
+    # Fit polynomial on pele range if provided, otherwise full arc
+    if pele is not None:
+        pele_mask = (ele >= pele[0]) & (ele <= pele[1])
+        if np.sum(pele_mask) > polyV + 1:
+            model = np.polyfit(ele[pele_mask], data[pele_mask], polyV)
+        else:
+            model = np.polyfit(ele, data, polyV)
+    else:
+        model = np.polyfit(ele, data, polyV)
     fit = np.polyval(model, ele)
     data = data - fit
 

@@ -310,11 +310,7 @@ def gnssir_guts_v2(station,year,doy, snr_type, extension,lsp, debug):
             ele = snrD[:,1]
             ele=apply_refraction_corr(lsp,ele,p,T)
 
-        # apply an elevation mask for all the data for the polynomial fit
-        i= (ele >= pele[0]) & (ele < pele[1])
-        ele = ele[i]
-        snrD = snrD[i,:]
-        sats = snrD[:,0]
+        # Store refraction-corrected elevations back into snrD
         snrD[:,1] = ele
 
         r.retrieve_rh(station,year,doy,extension,lsp,snrD, screenstats, irefr,logid,logfilename,lsp['dbhz'])

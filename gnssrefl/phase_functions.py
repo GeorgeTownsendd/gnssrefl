@@ -738,6 +738,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
     delTmax = lsp.get('delTmax', 120)
     PkNoise = lsp.get('PkNoise', 2.8)
     ediff = lsp.get('ediff', 2)
+    pele = lsp.get('pele', [e1, e2])
     screenstats = lsp.get('screenstats', False)
     midnite = lsp.get('midnite', True)
     gzip = lsp.get('gzip', True)
@@ -778,7 +779,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                 all_arcs = extract_arcs(
                     snrD, freq=freq, e1=e1, e2=e2,
                     azlist=[0, 360],  # accept all azimuths, match to tracks below
-                    polyV=poly_v, detrend=True, split_arcs=True,
+                    polyV=poly_v, pele=pele, detrend=True, split_arcs=True,
                     screenstats=screenstats,
                     filter_to_day=True,
                 )
