@@ -130,7 +130,7 @@ def attach_gnssir_processing_results(
         loaded from one (N rows x 17+ columns, see ``RESULT_COLUMNS``).
     time_tolerance : float
         Maximum allowed difference in hours between the arc timestamp and the
-        result UTCtime for a match. Default 0.02 (~72 seconds).
+        result UTCtime for a match. Default 0.17 (~10 minutes).
 
     Returns
     -------
@@ -223,7 +223,7 @@ def attach_phase_processing_results(
         loaded from one (N rows x 16 columns, see ``PHASE_COLUMNS``).
     time_tolerance : float
         Maximum allowed difference in hours between the arc timestamp and the
-        phase Hour for a match. Default 0.02 (~72 seconds).
+        phase Hour for a match. Default 0.17 (~10 minutes).
 
     Returns
     -------

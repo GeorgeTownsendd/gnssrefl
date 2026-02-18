@@ -197,7 +197,8 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
     # save file
 
     if (len(apriori_array) == 0):
-        print('Found no results - perhaps wrong year? or ')
+        print('Found no results - perhaps wrong year?')
+        sys.exit()
     else:
         qp.write_apriori_rh(apriori_path_f, apriori_array, station, year, tmin, tmax)
         print('>>>> Apriori RH file written to ', apriori_path_f)

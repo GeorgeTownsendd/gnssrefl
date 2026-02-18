@@ -415,7 +415,7 @@ def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool
                     NN = len(amp_lsps)
                     qs = oldquads[index]*np.ones(shape=[1,NN])
                     delRH = rhs-ap_rhs
-                    i = (norm_ampLSP < 0.8)
+                    i = (norm_ampLSP < min_norm_amp)
                     vegMask = np.zeros(shape=[NN,1])
                     vegMask[i] = 1
 
