@@ -520,6 +520,12 @@ def extract_arcs(
     """
     if azlist is None:
         azlist = [0, 360]
+    if pele is None:
+        pele = [e1, e2]
+
+    # Pre-filter SNR data to pele range (replicates gnssir's elevation mask)
+    pele_mask = (snr_array[:, 1] >= pele[0]) & (snr_array[:, 1] <= pele[1])
+    snr_array = snr_array[pele_mask]
 
     ncols = snr_array.shape[1]
 
