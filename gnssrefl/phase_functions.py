@@ -10,7 +10,7 @@ from gnssrefl.utils import FileManagement, FileTypes, format_qc_summary
 import gnssrefl.daily_avg_cl as da
 import gnssrefl.gnssir_v2 as gnssir
 import gnssrefl.read_snr_files as snr
-from gnssrefl.extract_arcs import extract_arcs
+from gnssrefl.extract_arcs import extract_arcs, _circular_distance_deg
 from functools import partial
 from scipy import optimize
 from scipy.interpolate import interp1d
@@ -803,13 +803,13 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                 n_filter_pk2noise = 0; n_filter_delT = 0; n_saved = 0
                 for meta, data in all_arcs:
                     sat_number = meta['sat']
-                    az_init = meta['az_init']
+                    az_min_ele = meta['az_min_ele']
                     cf = meta['cf']
 
-                    # Match arc to apriori track by satellite and az_init
+                    # Match arc to apriori track by satellite and circular distance to track avg azimuth
                     matching_track = None
                     for track in apriori_tracks:
-                        if track['sat'] == sat_number and track['az1'] < az_init < track['az2']:
+                        if track['sat'] == sat_number and _circular_distance_deg(az_min_ele, track['track_azim']) <= 3:
                             matching_track = track
                             break
 
@@ -833,7 +833,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                     nv = len(x)
 
                     utctime = meta['arc_timestamp']
-                    avg_azim = meta['az_avg']
+                    avg_azim = meta['az_min_ele']
                     del_t = meta['delT']
 
                     # L2C/L5 satellite checks
@@ -2086,31 +2086,23 @@ def old_quad(azim):
     return q
 
 
-def kinda_qc(satellite, rhtrack,meanaztrack,nvalstrack, amin,amax, y, t, new_phase,
-             avg_date,avg_phase,warning_value,remove_bad_tracks,avg_exist):
+def kinda_qc(satellite, track_avg_az, y, t, new_phase,
+             avg_date, avg_phase, warning_value, remove_bad_tracks, avg_exist):
     """
     Parameters
     ----------
     satellite : int
         satellite number
-    rhtrack: float
-        a priori reflector height
-    meanaztrack : float
-        I think it is the azimuth of the track, degrees
-    nvalstrack : int
-        not sure?
-    amin : int
-        min az of this quadrant
-    amax : int
-        max az of this quadrant
+    track_avg_az : float
+        yearly average azimuth of the track, degrees
     y : numpy array of ints
         year
     t : numpy array of ints
         day of year
     new_phase : numpy array of floats
-        phase values for a given satellite track ??
+        phase values for a given satellite track
     avg_date : numpy array of floats
-        y + doy/365.25 I think
+        y + doy/365.25
     avg_phase : numpy array of floats
         average phase, in degrees
     warning_value : float
@@ -2128,7 +2120,7 @@ def kinda_qc(satellite, rhtrack,meanaztrack,nvalstrack, amin,amax, y, t, new_pha
     if not avg_exist:
         return True
 
-    # quadrant results for this satellite track
+    # results for this satellite track
     satdate = y + t/365.25
     satphase = new_phase
 
@@ -2156,7 +2148,7 @@ def kinda_qc(satellite, rhtrack,meanaztrack,nvalstrack, amin,amax, y, t, new_pha
         if remove_bad_tracks:
             addit = '>>>>>  Removing This Track <<<<<'
             keepit = False
-    print(f"Npts {len(aa):4.0f} SatNu {satellite:2.0f} Residual {res:6.2f} Azims {amin:3.0f} {amax:3.0f} {addit:s} ")
+    print(f"Npts {len(aa):4.0f} SatNu {satellite:2.0f} Residual {res:6.2f} AvgAz {track_avg_az:5.1f} {addit:s} ")
 
     return keepit
 
@@ -2344,7 +2336,7 @@ def write_phase_for_advanced(filename, vxyz):
     #headers for output file - these are not correct BTW
     print('Writing interim file for advanced vegetation model ', filename)
     h0 = "File created by vwc function write_phase_for_advanced \n"
-    h1 = "Year DOY Phase  Azim Sat    RH    nLSPA nLSA    Hour   LSPA   LS  apRH  quad  delRH  vegM  MJD \n"
+    h1 = "Year DOY Phase  Azim Sat    RH    nLSPA nLSA    Hour   LSPA   LS  apRH  avgAz  delRH  vegM  MJD \n"
     h2 = "(1)  (2)  (3)   (4)  (5)    (6)    (7)   (8)     (9)   (10)  (11)  (12)  (13)  (14)  (15)  (16)"
     #2012   1   9.19  315.6  1   1.850   0.97   0.98  0.59 19.80 19.79  1.85  2
     with open(filename, 'w') as my_file:

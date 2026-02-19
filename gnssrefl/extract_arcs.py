@@ -44,6 +44,72 @@ _COL_CONST_TO_FREQ = {
 _SNR_COLUMNS = [6, 7, 8, 9, 10, 11]
 
 
+def _circular_mean_deg(angles):
+    """Circular mean of angles in degrees, handling the 0/360 wrap correctly."""
+    rad = np.deg2rad(angles)
+    return np.rad2deg(np.arctan2(np.mean(np.sin(rad)), np.mean(np.cos(rad)))) % 360
+
+
+def _circular_distance_deg(a, b):
+    """Shortest angular distance between two azimuths in degrees.
+
+    Works with scalars and numpy arrays (via broadcasting).
+    """
+    d = np.abs(a - b) % 360
+    return np.minimum(d, 360 - d)
+
+
+def _find_azimuth_clusters(azimuths, gap_threshold=20):
+    """Discover azimuth clusters using gap-based splitting on the circle.
+
+    Sorts azimuths, finds the largest gap (natural break on the circle),
+    then splits at any gap exceeding the threshold. Handles 0/360 wrap.
+
+    Parameters
+    ----------
+    azimuths : array-like
+        Azimuth values in degrees
+    gap_threshold : float
+        Minimum gap in degrees to split clusters. Default 20.
+
+    Returns
+    -------
+    list of numpy arrays
+        Each array contains the azimuths belonging to one cluster.
+    """
+    az = np.sort(np.asarray(azimuths, dtype=float) % 360)
+    n = len(az)
+    if n == 0:
+        return []
+    if n == 1:
+        return [az]
+
+    # Compute gaps between consecutive sorted values (including wrap-around)
+    gaps = np.empty(n)
+    gaps[:-1] = np.diff(az)
+    gaps[-1] = (az[0] + 360) - az[-1]
+
+    # Reorder starting after the largest gap (natural circle break)
+    start = (np.argmax(gaps) + 1) % n
+    ordered_az = np.roll(az, -start)
+
+    # Compute gaps in the reordered sequence, handling wrap
+    ordered_gaps = np.diff(ordered_az)
+    ordered_gaps[ordered_gaps < 0] += 360
+
+    # Split at gaps exceeding threshold
+    clusters = []
+    current = [ordered_az[0]]
+    for i in range(1, n):
+        if ordered_gaps[i - 1] > gap_threshold:
+            clusters.append(np.array(current))
+            current = []
+        current.append(ordered_az[i])
+    clusters.append(np.array(current))
+
+    return clusters
+
+
 def _freq_for_column_and_sat(column, sat, l2c_sats=None, l5_sats=None):
     """Map (SNR column, sat number) to user-facing freq code. Returns None if invalid."""
     offset = (sat // 100) * 100
@@ -515,7 +581,7 @@ def extract_arcs(
     list of (metadata, data) tuples
         Each arc is represented as:
         - metadata: dict with keys: sat, freq, arc_num, arc_type, ele_start, ele_end,
-          az_init, az_avg, time_start, time_end, time_avg, num_pts, delT, edot_factor, cf
+          az_min_ele, az_avg, time_start, time_end, time_avg, num_pts, delT, edot_factor, cf
         - data: dict with keys: ele, azi, snr, seconds, edot (all np.ndarray)
     """
     if azlist is None:
@@ -660,16 +726,13 @@ def extract_arcs(
                         if Nvv < 15:
                             continue
 
-                        # Get index of min elevation in filtered data for azimuth check
-                        filtered_ele = arc_ele[e_mask]
+                        # Check azimuth compliance using circular mean of filtered arc
                         filtered_azi = arc_azi[e_mask]
-                        ie = np.argmin(filtered_ele)
-                        init_azim = filtered_azi[ie]
+                        arc_azim = _circular_mean_deg(filtered_azi)
 
-                        # Check azimuth compliance
-                        if not _check_azimuth_compliance(init_azim, azlist):
+                        if not _check_azimuth_compliance(arc_azim, azlist):
                             if screenstats:
-                                print(f"Azimuth {init_azim:.2f} not in requested region")
+                                print(f"Azimuth {arc_azim:.2f} not in requested region")
                             continue
 
                         # Apply e1/e2 filter to all arrays
@@ -1025,8 +1088,8 @@ def _compute_arc_metadata(
         'arc_type': arc_type,
         'ele_start': float(np.min(ele)),
         'ele_end': float(np.max(ele)),
-        'az_init': float(init_azim),
-        'az_avg': float(np.mean(azi)),
+        'az_min_ele': float(init_azim),
+        'az_avg': float(_circular_mean_deg(azi)),
         'time_start': float(np.min(seconds)),
         'time_end': float(np.max(seconds)),
         'arc_timestamp': float(np.mean(seconds) / 3600),  # hours UTC

@@ -159,7 +159,7 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
                 y = data['snr']
                 secxonds = data['seconds']
                 cf = meta['cf']
-                avgAzim = meta['az_init']
+                az_min_ele = meta['az_min_ele']
                 Edot2 = meta['edot_factor']
                 delT = meta['delT']
                 meanTime = meta['arc_timestamp']
@@ -183,7 +183,7 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
                 if len(nij) > 0:
                     Noise = np.mean(nij)
 
-                iAzim = int(avgAzim)
+                iAzim = int(az_min_ele)
 
                 if abs(maxF - minH) < 0.10:  # peak too close to min value
                     tooclose = True
@@ -194,17 +194,17 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
                 if (not tooclose) & (delT < delTmax) & (maxAmp > reqAmp[ct]) & (maxAmp/Noise > PkNoise):
                     # QC passed - save arc
                     if test_savearcs and (Nv > 0):
-                        newffile = guts.arc_name(sdir,satNu,f,a,avgAzim)
+                        newffile = guts.arc_name(sdir,satNu,f,a,az_min_ele)
                         if (len(newffile) > 0) and (delT != 0):
-                            file_info = [station,satNu,f,avgAzim,year,month,day,doy,meanTime,docstring]
+                            file_info = [station,satNu,f,az_min_ele,year,month,day,doy,meanTime,docstring]
                             guts.write_out_arcs(newffile,x,y,secxonds,file_info,savearcs_format)
 
                     xyear,xmonth,xday,xhr,xmin,xsec,xdoy = g.simpleTime(MJD)
                     betterUTC = xhr + xmin/60 + xsec/3600
                     if lsp['mmdd']:
-                        onelsp = [xyear,xdoy,maxF,satNu,betterUTC,avgAzim,maxAmp,eminObs,emaxObs,Nv,f,riseSet,Edot2,maxAmp/Noise,delT,MJD,irefr,xmonth,xday,xhr,xmin,xsec]
+                        onelsp = [xyear,xdoy,maxF,satNu,betterUTC,az_min_ele,maxAmp,eminObs,emaxObs,Nv,f,riseSet,Edot2,maxAmp/Noise,delT,MJD,irefr,xmonth,xday,xhr,xmin,xsec]
                     else:
-                        onelsp = [xyear,xdoy,maxF,satNu,betterUTC,avgAzim,maxAmp,eminObs,emaxObs,Nv,f,riseSet,Edot2,maxAmp/Noise,delT,MJD,irefr]
+                        onelsp = [xyear,xdoy,maxF,satNu,betterUTC,az_min_ele,maxAmp,eminObs,emaxObs,Nv,f,riseSet,Edot2,maxAmp/Noise,delT,MJD,irefr]
 
                     gj += 1
                     all_lsp.append(onelsp)
@@ -226,9 +226,9 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
                     elif delT >= delTmax:
                         n_filter_delT += 1
                     if test_savearcs and (Nv > 0):
-                        newffile = guts.arc_name(sdir+'failQC/',satNu,f,a,avgAzim)
+                        newffile = guts.arc_name(sdir+'failQC/',satNu,f,a,az_min_ele)
                         if (len(newffile) > 0) and (delT != 0):
-                            file_info = [station,satNu,f,avgAzim,year,month,day,doy,meanTime,docstring]
+                            file_info = [station,satNu,f,az_min_ele,year,month,day,doy,meanTime,docstring]
                             guts.write_out_arcs(newffile,x,y,secxonds,file_info,savearcs_format)
                     rj += 1
                     if screenstats:

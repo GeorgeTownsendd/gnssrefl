@@ -12,6 +12,7 @@ from gnssrefl.utils import read_files_in_dir, FileTypes, FileManagement
 import gnssrefl.gnssir_v2 as guts2
 import gnssrefl.phase_functions as qp
 from gnssrefl.phase_functions import get_vwc_frequency
+from gnssrefl.extract_arcs import _circular_mean_deg, _circular_distance_deg, _find_azimuth_clusters
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -133,9 +134,6 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
     gnssir_results = np.transpose(gnssir_results) 
 
 
-    # four quadrants
-    azimuth_list = [0, 90, 180, 270]
-
     # get the satellites for the requested frequency and most recent year
     if (fr == 1):
         l1_satellite_list = np.arange(1,33)
@@ -164,31 +162,33 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
     satellite_gnssir_results = gnssir_results[3][frequency_indices]
     azimuth_gnssir_results = gnssir_results[5][frequency_indices]
 
-    b=0
+    b = 0
 
     apriori_array = []
-    for azimuth in azimuth_list:
-        azimuth_min = azimuth
-        azimuth_max = azimuth + 90
-        for satellite in satellite_list:
-            reflector_heights = reflector_height_gnssir_results[(azimuth_gnssir_results > azimuth_min)
-                                                                & (azimuth_gnssir_results < azimuth_max)
-                                                                & (satellite_gnssir_results == satellite)]
-            azimuths = azimuth_gnssir_results[(azimuth_gnssir_results > azimuth_min)
-                                              & (azimuth_gnssir_results < azimuth_max)
-                                              & (satellite_gnssir_results == satellite)]
-            if (len(reflector_heights) > min_tracks):
+    for satellite in satellite_list:
+        sat_mask = satellite_gnssir_results == satellite
+        sat_azimuths = azimuth_gnssir_results[sat_mask]
+        if len(sat_azimuths) == 0:
+            continue
+        clusters = _find_azimuth_clusters(sat_azimuths)
+        for cluster in clusters:
+            track_avg_az = _circular_mean_deg(cluster)
+            mask = sat_mask & (_circular_distance_deg(azimuth_gnssir_results, track_avg_az) <= 3)
+            reflector_heights = reflector_height_gnssir_results[mask]
+            azimuths = azimuth_gnssir_results[mask]
+            if len(reflector_heights) > min_tracks:
                 # Exclude bimodal RH distributions (high BC + low kurtosis)
                 kurt = scipy_kurtosis(reflector_heights, fisher=False)
                 bc = (skew(reflector_heights)**2 + 1) / kurt if kurt > 0 else 0
                 if bc > 0.9 and kurt < 3:
-                    print(f'  Excluding bimodal track: sat {satellite:2.0f} az {azimuth_min}-{azimuth_max} (BC={bc:.3f}, n={len(reflector_heights)})')
+                    print(f'  Excluding bimodal track: sat {satellite:2.0f} avgAz {track_avg_az:5.1f} (BC={bc:.3f}, n={len(reflector_heights)})')
                     continue
 
-                b = b+1
-                average_azimuth = np.mean(azimuths)
-                #print("{0:3.0f} {1:5.2f} {2:2.0f} {3:7.2f} {4:3.0f} {5:3.0f} {6:3.0f} ".format(b, np.mean(reflector_heights), satellite, average_azimuth, len(reflector_heights),azimuth_min,azimuth_max))
-                apriori_array.append([b, np.mean(reflector_heights), satellite, average_azimuth, len(reflector_heights), azimuth_min, azimuth_max])
+                b = b + 1
+                average_azimuth = _circular_mean_deg(azimuths)
+                az_min = (average_azimuth - 3) % 360
+                az_max = (average_azimuth + 3) % 360
+                apriori_array.append([b, np.mean(reflector_heights), satellite, average_azimuth, len(reflector_heights), az_min, az_max])
 
     # Use FileManagement with frequency and extension support
     file_manager = FileManagement(station, 'apriori_rh_file', frequency=fr, extension=extension)
