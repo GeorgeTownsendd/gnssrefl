@@ -460,6 +460,7 @@ def extract_arcs_from_station(
     attach_results: bool = False,
     extension: str = '',
     lsp: Optional[Dict[str, Any]] = None,
+    gzip: bool = False,
     **kwargs,
 ) -> List[Tuple[Dict[str, Any], Dict[str, np.ndarray]]]:
     """
@@ -502,6 +503,8 @@ def extract_arcs_from_station(
         Station analysis parameters (from json). When provided and
         ``lsp['refraction']`` is True, refraction correction is applied
         to elevation angles before arc extraction. Default: None
+    gzip : bool
+        If True, gzip-compress the SNR file after reading. Default: False
     **kwargs
         Additional keyword arguments passed to ``extract_arcs()``
         (e1, e2, azlist, sat_list, etc.)
@@ -531,6 +534,10 @@ def extract_arcs_from_station(
     )
     if not allGood:
         raise RuntimeError(f"read_snr failed for: {obsfile}")
+
+    if gzip and os.path.isfile(obsfile):
+        import subprocess
+        subprocess.call(['gzip', '-f', obsfile])
 
     # Apply refraction correction if lsp is provided with refraction enabled
     if lsp is not None and lsp.get('refraction', False):
@@ -578,6 +585,7 @@ def extract_arcs_from_file(
     obsfile: str,
     freq: Optional[Union[int, List[int]]] = None,
     buffer_hours: float = 2,
+    gzip: bool = False,
     **kwargs,
 ) -> List[Tuple[Dict[str, Any], Dict[str, np.ndarray]]]:
     """
@@ -596,6 +604,8 @@ def extract_arcs_from_file(
     buffer_hours : float
         Hours of data to include from adjacent days for midnight-crossing arcs.
         Default: 2
+    gzip : bool
+        If True, gzip-compress the SNR file after reading. Default: False
     **kwargs
         Additional keyword arguments passed to ``extract_arcs()``
         (e1, e2, azlist, sat_list, etc.)
@@ -621,6 +631,10 @@ def extract_arcs_from_file(
     )
     if not allGood:
         raise RuntimeError(f"read_snr failed for: {obsfile}")
+
+    if gzip and os.path.isfile(obsfile):
+        import subprocess
+        subprocess.call(['gzip', '-f', obsfile])
 
     return extract_arcs(snr_array, freq=freq, **kwargs)
 
