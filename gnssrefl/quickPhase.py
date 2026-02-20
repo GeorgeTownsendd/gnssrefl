@@ -99,7 +99,7 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
     par : int, optional
         Number of parallel processes to spawn (up to 10). Default is 1 (single process).
     midnite : bool, optional
-        Allow midnight crossings. When True, loads +/- 2 hours from adjacent days. Default is False.
+        Allow midnight crossings. When True, loads +/- 2 hours from adjacent days. Default is True.
 
     Returns
     -------

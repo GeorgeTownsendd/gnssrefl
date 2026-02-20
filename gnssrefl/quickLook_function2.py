@@ -15,6 +15,7 @@ import gnssrefl.refraction as refr
 import gnssrefl.rinex2snr as rinex
 import gnssrefl.gnssir_v2 as gnssir_v2
 import gnssrefl.read_snr_files as snr
+from gnssrefl.extract_arcs import extract_arcs
 
 
 def quickLook_function(station, year, doy, snr_type,f,e1,e2,minH,maxH,reqAmp,pele,satsel,PkNoise,fortran,
@@ -165,45 +166,33 @@ def quickLook_function(station, year, doy, snr_type,f,e1,e2,minH,maxH,reqAmp,pel
 
         # apply elevation angle correction for simple refraction here
         if irefr == 1:
-            #print('found simple refraction parameters')
             lsp={}; lsp['refraction'] = True
             snrD[:,1] = gnssir_v2.apply_refraction_corr(lsp,snrD[:,1],quick_p,quick_T)
-        # restrict to DC limits 
-        ele = snrD[:,1]
 
-
-        i= (ele >= pele[0]) & (ele < pele[1])
-        ele = ele[i]
-        snrD = snrD[i,:]
         sats = snrD[:,0]
 
-        # very rare that no GPS data exist, so will not check it.  I will probably regret this
-        #if (f < 6):
-        #    b = sats[(sats<100)]; print('gps',len(b))
+        # check constellation data presence
         if (f > 100) and (f < 200): # glonass
-            b = sats[(sats>100) & (sats<200)]; # print('glonass',len(b))
+            b = sats[(sats>100) & (sats<200)]
             if len(b) == 0:
-                print('NO Glonass DATA in the file') ; 
+                print('NO Glonass DATA in the file')
                 return data, datakey
         elif (f > 200) & (f < 300): # galileo
-            b = sats[(sats>200) & (sats<300)]; # print('galileo',len(b))
+            b = sats[(sats>200) & (sats<300)]
             if len(b) == 0:
-                print('NO Galileo data in the file'); 
+                print('NO Galileo data in the file')
                 return data, datakey
         elif (f > 300): # beidou
-            b = sats[(sats>300) & (sats<400)]; # print('beidou',len(b))
+            b = sats[(sats>300) & (sats<400)]
             if len(b) == 0:
-                print('NO Beidou data in the file'); 
+                print('NO Beidou data in the file')
                 return data, datakey
 
         fig = plt.figure(figsize=(10,6))
         ax1=plt.subplot(2,2,bz[0]); ax2=plt.subplot(2,2,bz[1]) ; ax3=plt.subplot(2,2,bz[2]) ; ax4=plt.subplot(2,2,bz[3])
-        # save the handles in a dictionary
         saxis = {} ; saxis['0'] = ax1 ; saxis['1'] = ax2; saxis['2'] = ax3 ; saxis['3'] = ax4
 
         allpoints = 0
-
-        # keep track of the maximum amplitude for each track in each quadrant so you can have them be hte same
         axisSize =np.empty(shape=[0, 2])
 
         if (satsel == None):
@@ -211,83 +200,70 @@ def quickLook_function(station, year, doy, snr_type,f,e1,e2,minH,maxH,reqAmp,pel
         else:
             satlist = [satsel]
 
-        azvalues = [0,360] # for the start
+        arcs = extract_arcs(snrD, freq=f, e1=e1, e2=e2, sat_list=satlist, polyV=polyV, pele=pele)
 
-        for satNu in satlist:
-            iii = (sats == satNu)
-            thissat = snrD[iii,:]
-            goahead = False
+        for a_idx, (meta, arc_data) in enumerate(arcs):
+            # ediff QC (matching retrieve_rh.py)
+            if (meta['ele_start'] - e1) > ediff:
+                continue
+            if (meta['ele_end'] - e2) < -ediff:
+                continue
 
-            if len(thissat) > 0:
-                # if there are data for this satellite, find all the arcs
-                arclist = gnssir_v2.new_rise_set(thissat[:,1],thissat[:,2],thissat[:,3],e1, e2,ediff,satNu,screenstats)
-                nr,nc = arclist.shape
-                if nr > 0:
-                    goahead = True
+            satNu = meta['sat']
+            x = arc_data['ele']
+            y = arc_data['snr']
+            Nv = meta['num_pts']
+            cf = meta['cf']
+            UTCtime = meta['arc_timestamp']
+            avgAzim = meta['az_min_ele']
+            delT = meta['delT']
+
+            a = whichquad(avgAzim)
+            tooclose = False
+            if (delT != 0) & (Nv > 20):
+                T = g.nicerTime(UTCtime)
+                maxF, maxAmp, eminObs, emaxObs,riseSet,px,pz= g.strip_compute(x,y,cf,maxH,desiredP,polyV,minH)
+                if (maxF ==0) & (maxAmp == 0):
+                    tooclose == True; Noise = 1; iAzim = 0;
                 else:
-                    goahead = False
+                    nij =  pz[(px > NReg[0]) & (px < NReg[1])]
 
-                if goahead:
-                    for arc in range(0,nr):
-                        sind = int(arclist[arc,0]) ; eind = int(arclist[arc,1])
-                        d2 = np.array(thissat[sind:eind, :], dtype=float)
-                    # window the data - which also removes DC, for now use old version 
-                        ffid = None # fake logfile
-                        #
-                        dbhz = False
-                        x,y, Nvv, cf, meanTime,avgAzim,outFact1, Edot2, delT,secxonds= gnssir_v2.window_new(d2, f,
-                                satNu,ncols, polyV,e1,e2,azvalues,screenstats,ffid,dbhz)
-                        Nv = Nvv # number of points
-                        UTCtime = meanTime
-                    # for this arc, which a value is it?
-                        a = whichquad(avgAzim)
-                        #print('Looking at arc ', arc, ' quad ', a, avgAzim)
-                        tooclose = False
-                        if (delT != 0) & (Nv > 20):
-                            T = g.nicerTime(UTCtime)
-                            maxF, maxAmp, eminObs, emaxObs,riseSet,px,pz= g.strip_compute(x,y,cf,maxH,desiredP,polyV,minH)
-                            if (maxF ==0) & (maxAmp == 0):
-                                tooclose == True; Noise = 1; iAzim = 0;
-                            else:
-                                nij =  pz[(px > NReg[0]) & (px < NReg[1])]
+                Noise = 1
+                if (len(nij) > 0):
+                    Noise = np.mean(nij)
 
-                            Noise = 1
-                            if (len(nij) > 0):
-                                Noise = np.mean(nij)
+                iAzim = int(avgAzim)
 
-                            iAzim = int(avgAzim)
+                if abs(maxF - minH) < 0.10: #  peak too close to min value
+                    tooclose = True
 
-                            if abs(maxF - minH) < 0.10: #  peak too close to min value
-                                tooclose = True
+                if abs(maxF - maxH) < 0.10: #  peak too close to max value
+                    tooclose = True
 
-                            if abs(maxF - maxH) < 0.10: #  peak too close to max value
-                                tooclose = True
+                if (not tooclose) & (delT < delTmax) & (maxAmp > requireAmp) & (maxAmp/Noise > PkNoise) & (iAzim >= azim1) & (iAzim <= azim2):
+                    rhout.write('{0:3.0f} {1:6.3f} {2:3.0f} {3:4.1f} {4:3.1f} {5:6.2f} {6:2.0f} \n '.format(iAzim,maxF,satNu,
+                        maxAmp,maxAmp/Noise,UTCtime,1))
+                    lw=1.5 ; colorful(a,px,pz,lw,True,saxis)
+                    idc = stitles[a]
+                    data[idc][satNu] = [px,pz]
+                    datakey[idc][satNu] = [avgAzim, maxF, satNu,f,maxAmp,maxAmp/Noise, UTCtime]
+                    if screenstats:
+                        print('SUCCESS for Azimu {0:5.1f} Satellite {1:2.0f} UTC {2:5.2f} RH {3:7.3f} PkNoise {4:6.2f}'.format( avgAzim,satNu,UTCtime,maxF,maxAmp/Noise))
+                    newl=[a,maxAmp]; axisSize =np.append(axisSize,[newl], axis=0)
 
-                            if (not tooclose) & (delT < delTmax) & (maxAmp > requireAmp) & (maxAmp/Noise > PkNoise) & (iAzim >= azim1) & (iAzim <= azim2):
-                                rhout.write('{0:3.0f} {1:6.3f} {2:3.0f} {3:4.1f} {4:3.1f} {5:6.2f} {6:2.0f} \n '.format(iAzim,maxF,satNu,
-                                    maxAmp,maxAmp/Noise,UTCtime,1))
-                                lw=1.5 ; colorful(a,px,pz,lw,True,saxis)
-                                idc = stitles[a]
-                                data[idc][satNu] = [px,pz]
-                                datakey[idc][satNu] = [avgAzim, maxF, satNu,f,maxAmp,maxAmp/Noise, UTCtime]
-                                if screenstats:
-                                    print('SUCCESS for Azimu {0:5.1f} Satellite {1:2.0f} UTC {2:5.2f} RH {3:7.3f} PkNoise {4:6.2f}'.format( avgAzim,satNu,UTCtime,maxF,maxAmp/Noise))
-                                # try to track the maximum amplitude in each quadrant this way
-                                newl=[a,maxAmp]; axisSize =np.append(axisSize,[newl], axis=0)
+                else:
+                    if (iAzim > azim1) & (iAzim < azim2):
+                        lw = 0.5 ; colorful(a,px,pz,lw,False,saxis)
+                        if screenstats:
+                            print('FAILED QC for Azimuth {0:5.1f} Satellite {1:2.0f} UTC {2:5.2f} RH {3:7.3f} '.format( avgAzim,satNu,UTCtime,maxF))
+                            logout = None
+                            g.write_QC_fails(delT,delTmax,eminObs,emaxObs,e1,e2,ediff,maxAmp, Noise,PkNoise,requireAmp,tooclose,logout)
 
-                            else:
-                                if (iAzim > azim1) & (iAzim < azim2):
-                                    lw = 0.5 ; colorful(a,px,pz,lw,False,saxis) # add to the plot
-                                    if screenstats:
-                                        print('FAILED QC for Azimuth {0:5.1f} Satellite {1:2.0f} UTC {2:5.2f} RH {3:7.3f} '.format( avgAzim,satNu,UTCtime,maxF))
-                                        logout = None
-                                        g.write_QC_fails(delT,delTmax,eminObs,emaxObs,e1,e2,ediff,maxAmp, Noise,PkNoise,requireAmp,tooclose,logout)
-
-                                    idc = 'f' + stitles[a]
-                                    data[idc][satNu] = [px,pz]
-                                    datakey[idc][satNu] = [avgAzim, maxF, satNu,f,maxAmp,maxAmp/Noise, UTCtime]
-                                    rhout.write('{0:3.0f} {1:6.3f} {2:3.0f} {3:4.1f} {4:3.1f} {5:6.2f} {6:2.0f} \n '.format(iAzim,maxF,
-                                        satNu,maxAmp,maxAmp/Noise,UTCtime,-1))
+                        idc = 'f' + stitles[a]
+                        data[idc][satNu] = [px,pz]
+                        datakey[idc][satNu] = [avgAzim, maxF, satNu,f,maxAmp,maxAmp/Noise, UTCtime]
+                        rhout.write('{0:3.0f} {1:6.3f} {2:3.0f} {3:4.1f} {4:3.1f} {5:6.2f} {6:2.0f} \n '.format(iAzim,maxF,
+                            satNu,maxAmp,maxAmp/Noise,UTCtime,-1))
 
         rhout.close()
 
