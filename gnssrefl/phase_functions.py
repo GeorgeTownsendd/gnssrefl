@@ -9,8 +9,7 @@ import gnssrefl.gps as g
 from gnssrefl.utils import FileManagement, FileTypes, format_qc_summary
 import gnssrefl.daily_avg_cl as da
 import gnssrefl.gnssir_v2 as gnssir
-import gnssrefl.read_snr_files as snr
-from gnssrefl.extract_arcs import extract_arcs, _circular_distance_deg
+from gnssrefl.extract_arcs import extract_arcs_from_file, _circular_distance_deg
 from functools import partial
 from scipy import optimize
 from scipy.interpolate import interp1d
@@ -768,10 +767,6 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
             np.savetxt(my_file, [], header=header, comments='%')
             # Load adjacent day data for midnight-crossing arcs (default: on)
             buffer_hours = 2 if midnite else 0
-            allGood, snrD, nrows, ncols = snr.read_snr(obsfile, buffer_hours=buffer_hours, screenstats=screenstats)
-            if not allGood:
-                print(f'Problem reading SNR file: {obsfile}')
-                return
 
             qc_lines = []
             all_results = []
@@ -782,12 +777,12 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                 print('Analyzing Frequency ', freq, ' Year ', year, ' Day of Year ', doy)
 
                 # Extract arcs using gnssir-aligned processing
-                all_arcs = extract_arcs(
-                    snrD, freq=freq, e1=e1, e2=e2,
-                    azlist=[0, 360],  # accept all azimuths, match to tracks below
+                all_arcs = extract_arcs_from_file(
+                    obsfile, freq=freq, e1=e1, e2=e2,
                     polyV=poly_v, pele=pele, detrend=True, split_arcs=True,
                     screenstats=screenstats,
                     filter_to_day=True,
+                    buffer_hours=buffer_hours,
                 )
 
                 # Build apriori track lookup

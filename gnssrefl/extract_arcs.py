@@ -369,8 +369,8 @@ def attach_vwc_track_results(
     year: int,
     doy: int,
     extension: str = '',
-    az_tolerance: float = 15.0,
-    time_tolerance: float = 0.17,
+    az_tolerance: float = 5.0,
+    time_tolerance: float = 0.25,
 ) -> List[Tuple[Dict, Dict]]:
     """Attach VWC track results from ``vwc -save_tracks T -vegetation_model 2``.
 
@@ -437,9 +437,8 @@ def attach_vwc_track_results(
         day_rows = track_data[day_mask]
         if len(day_rows) == 0:
             continue
-
-        # Nearest-neighbor on Hour
-        hour_diffs = np.abs(day_rows[:, 2] - metadata['arc_timestamp'])
+        raw_diffs = np.abs(day_rows[:, 2] - metadata['arc_timestamp'])
+        hour_diffs = np.minimum(raw_diffs, 24 - raw_diffs)
         best_row_i = int(np.argmin(hour_diffs))
         if hour_diffs[best_row_i] > time_tolerance:
             continue
@@ -457,7 +456,7 @@ def extract_arcs_from_station(
     doy: int,
     freq: Optional[Union[int, List[int]]] = None,
     snr_type: int = 66,
-    buffer_hours: float = 0,
+    buffer_hours: float = 2,
     attach_results: bool = False,
     extension: str = '',
     **kwargs,
@@ -484,7 +483,7 @@ def extract_arcs_from_station(
         SNR file type (66, 77, 88, etc.). Default: 66
     buffer_hours : float
         Hours of data to include from adjacent days for midnight-crossing arcs.
-        Default: 0 (single day only)
+        Default: 2
     attach_results : bool
         If True, look up the gnssir result file, phase result file, and VWC
         individual track files, attaching processing results to each arc's
@@ -556,7 +555,7 @@ def extract_arcs_from_station(
 def extract_arcs_from_file(
     obsfile: str,
     freq: Optional[Union[int, List[int]]] = None,
-    buffer_hours: float = 0,
+    buffer_hours: float = 2,
     **kwargs,
 ) -> List[Tuple[Dict[str, Any], Dict[str, np.ndarray]]]:
     """
@@ -574,7 +573,7 @@ def extract_arcs_from_file(
         frequencies that have data in the file.
     buffer_hours : float
         Hours of data to include from adjacent days for midnight-crossing arcs.
-        Default: 0 (single day only)
+        Default: 2
     **kwargs
         Additional keyword arguments passed to ``extract_arcs()``
         (e1, e2, azlist, sat_list, etc.)
