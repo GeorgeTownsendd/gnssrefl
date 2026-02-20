@@ -459,6 +459,7 @@ def extract_arcs_from_station(
     buffer_hours: float = 2,
     attach_results: bool = False,
     extension: str = '',
+    lsp: Optional[Dict[str, Any]] = None,
     **kwargs,
 ) -> List[Tuple[Dict[str, Any], Dict[str, np.ndarray]]]:
     """
@@ -497,6 +498,10 @@ def extract_arcs_from_station(
         Subdirectory under ``$REFL_CODE/<year>/results/<station>/`` where
         result files are stored (e.g. ``'gnssir'``). Only used when
         *attach_results* is True. Default: ``''`` (no subdirectory)
+    lsp : dict, optional
+        Station analysis parameters (from json). When provided and
+        ``lsp['refraction']`` is True, refraction correction is applied
+        to elevation angles before arc extraction. Default: None
     **kwargs
         Additional keyword arguments passed to ``extract_arcs()``
         (e1, e2, azlist, sat_list, etc.)
@@ -518,7 +523,24 @@ def extract_arcs_from_station(
             f"SNR file not found for station={station}, year={year}, "
             f"doy={doy}, snr_type={snr_type}: {obsfile}"
         )
-    arcs = extract_arcs_from_file(obsfile, freq, buffer_hours=buffer_hours, year=year, doy=doy, **kwargs)
+
+    # Load SNR data (same as extract_arcs_from_file)
+    screenstats = kwargs.get('screenstats', False)
+    allGood, snr_array, _, _ = read_snr(
+        obsfile, buffer_hours=buffer_hours, screenstats=screenstats,
+    )
+    if not allGood:
+        raise RuntimeError(f"read_snr failed for: {obsfile}")
+
+    # Apply refraction correction if lsp is provided with refraction enabled
+    if lsp is not None and lsp.get('refraction', False):
+        from gnssrefl.refraction import correct_elevations
+        corrected, valid_mask = correct_elevations(snr_array[:, 1], lsp, year, doy)
+        snr_array = snr_array.copy()
+        snr_array[:, 1] = corrected
+        snr_array = snr_array[valid_mask]
+
+    arcs = extract_arcs(snr_array, freq=freq, year=year, doy=doy, **kwargs)
 
     if attach_results and extension:
         refl_code = os.environ.get('REFL_CODE', '')
@@ -621,6 +643,7 @@ def extract_arcs(
     filter_to_day: bool = True,
     year: Optional[int] = None,
     doy: Optional[int] = None,
+    dec: int = 1,
 ) -> List[Tuple[Dict[str, Any], Dict[str, np.ndarray]]]:
     """
     Extract satellite arcs from SNR data array.
@@ -674,6 +697,9 @@ def extract_arcs(
         column 8 are assumed L2C.
     doy : int, optional
         Day of year (1-366). See *year*.
+    dec : int
+        Decimation factor. Keep only observations whose seconds-of-day is
+        divisible by *dec*. Default: 1 (no decimation).
 
     Returns
     -------
@@ -687,6 +713,11 @@ def extract_arcs(
         azlist = [0, 360]
     if pele is None:
         pele = [e1, e2]
+
+    # Apply decimation before any other filtering
+    if dec != 1:
+        keep = np.remainder(snr_array[:, 3], dec) == 0
+        snr_array = snr_array[keep]
 
     # Pre-filter SNR data to pele range (replicates gnssir's elevation mask)
     pele_mask = (snr_array[:, 1] >= pele[0]) & (snr_array[:, 1] <= pele[1])

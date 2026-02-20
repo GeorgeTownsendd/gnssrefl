@@ -531,6 +531,8 @@ def read_json_file(station, extension,**kwargs):
         print('Please fix your json file: ', json_path)
         sys.exit()
 
+    lsp['station'] = station
+
     return lsp
 
 
