@@ -32,7 +32,7 @@ arcs = extract_arcs_from_station('mchl', 2025, 11)
 print(f'{len(arcs)} arcs found')
 for meta, data in arcs[:3]:
     print(f"  sat {meta['sat']:3d}  freq {meta['freq']:3d}  "
-          f"{meta['arc_type']:7s}  az={meta['az_init']:5.1f}  "
+          f"{meta['arc_type']:7s}  az={meta['az_min_ele']:5.1f}  "
           f"delT={meta['delT']:.1f} min  pts={meta['num_pts']}")
 # 457 arcs found
 #   sat 202  freq 206  rising   az=290.4  delT=128.0 min  pts=257
@@ -85,7 +85,7 @@ Some commonly used parameters. All keyword arguments below can be passed to
 | `arc_type` | str | `'rising'` or `'setting'` |
 | `ele_start` | float | Minimum observed elevation angle (deg) |
 | `ele_end` | float | Maximum observed elevation angle (deg) |
-| `az_init` | float | Azimuth at lowest elevation (deg) |
+| `az_min_ele` | float | Azimuth at minimum elevation angle (deg) |
 | `az_avg` | float | Mean azimuth over the arc (deg) |
 | `time_start` | float | Start time (seconds of day) |
 | `time_end` | float | End time (seconds of day) |
@@ -135,7 +135,7 @@ ax.plot(x, data['snr'])
 ax.set_xlabel('sin(elevation)')
 ax.set_ylabel('Detrended SNR')
 ax.set_title(f"Sat {meta['sat']}  freq {meta['freq']}  "
-             f"{meta['arc_type']}  az={meta['az_init']:.0f}")
+             f"{meta['arc_type']}  az={meta['az_min_ele']:.0f}")
 fig.tight_layout()
 plt.show()
 ```
@@ -273,12 +273,12 @@ p038_doy184 = extract_arcs_from_station('p038', 2023, 184, freq=20, sat_list=[3]
 fig, ax = plt.subplots(figsize=(7, 3))
 for arcs, doy in [(p038_doy183, 183), (p038_doy184, 184)]:
     # sat 3 arc nearest az=187
-    meta, data = min(arcs, key=lambda a: abs(a[0]['az_init'] - 187))
+    meta, data = min(arcs, key=lambda a: abs(a[0]['az_min_ele'] - 187))
     p = meta['phase_processing_results']
     ax.plot(np.sin(np.radians(data['ele'])), data['snr'], label=f"DOY {doy}  phase={p['Phase']:.0f}" + r"$^\circ$")
 ax.set_xlabel('sin(elevation)')
 ax.set_ylabel('Detrended SNR')
-ax.set_title(f"p038 sat 3 {meta['arc_type']} az={meta['az_init']:.0f}" + r"$^\circ$" + " - consecutive days")
+ax.set_title(f"p038 sat 3 {meta['arc_type']} az={meta['az_min_ele']:.0f}" + r"$^\circ$" + " - consecutive days")
 ax.legend()
 fig.tight_layout()
 plt.show()

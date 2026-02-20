@@ -581,11 +581,17 @@ def write_apriori_rh(filepath, tracks, station, year, tmin, tmax):
     """
     Write apriori RH track list file. Used by both vwc_input and vwc auto_removal.
 
+    A track is defined by satellite number and the azimuth at minimum elevation
+    angle (az_min_ele) of each arc. Arcs are clustered into tracks when their
+    az_min_ele values fall within 3 degrees of the cluster center. The track's
+    mean azimuth (track_avg_az) is the circular mean of az_min_ele across all
+    arcs in the cluster.
+
     Parameters
     ----------
     filepath : path-like
     tracks : list
-        each element is [track_num, rh, satellite, mean_az, nvals, az_min, az_max]
+        each element is [track_num, rh, satellite, track_avg_az, nvals, az_min, az_max]
     station : str
     year : int
     tmin : float
@@ -593,7 +599,7 @@ def write_apriori_rh(filepath, tracks, station, year, tmin, tmax):
     tmax : float
         maximum soil texture (header metadata only)
     """
-    # sort by mean azimuth and renumber
+    # sort by track average azimuth and renumber
     tracks = [[i+1] + t[1:] for i, t in enumerate(sorted(tracks, key=lambda t: t[3]))]
 
     with open(filepath, 'w') as f:
@@ -833,7 +839,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                     nv = len(x)
 
                     utctime = meta['arc_timestamp']
-                    avg_azim = meta['az_min_ele']
+                    az_min_ele = meta['az_min_ele']
                     del_t = meta['delT']
 
                     # L2C/L5 satellite checks
@@ -907,7 +913,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                     if raw_amp < 0:
                         phase = phase + 180
 
-                    all_results.append([year, doy, utctime, phase, nv, avg_azim, sat_number, amp, min_el, max_el, del_t, rh_apriori, freq, max_f, obs_pk2noise, max_amp])
+                    all_results.append([year, doy, utctime, phase, nv, az_min_ele, sat_number, amp, min_el, max_el, del_t, rh_apriori, freq, max_f, obs_pk2noise, max_amp])
                     n_saved += 1
 
                 qc_filters = [
@@ -2048,18 +2054,6 @@ def write_all_phase(v,fname):
 
     with open(fname, 'w') as my_file:
         np.savetxt(my_file, [], header=header1, comments='%')
-        #np.savetxt(my_file, [], header=header2, comments='%')
-    #result = [[year, doy, utctime, phase, nv, avg_azim, sat_number, amp, min_el, max_el, del_t, rh_apriori, freq, max_f, obs_pk2noise, max_amp]]
-    #np.savetxt(my_file, result, fmt="%4.0f %3.0f %6.2f %8.3f %5.0f %6.1f %3.0f %5.2f %5.2f %5.2f %6.2f %5.3f %2.0f %6.3f %6.2f %6.2f", comments="%")
-
-
-    #for i in range(0,nr):
-    #    q = old_quad(v[i,3])
-    #    a = v[i,5] ; sat = v[i,6]; amp_lsp = v[i,15]
-    #    amp_ls = v[i,7] ; rh = v[i,13]
-    #    allrh.write(" {0:4.0f} {1:3.0f} {2:7.3f} {3:7.1f} {4:2.0f} {5:7.3f} {6:7.3f} {7:7.3f} {8:2.0f} \
-    #            {9:7.2f} {10:7.2f} {11:7.2f} {12:7.3f}\n".format(v[i,0], v[i,1], v[i,3],a, sat,rh,amp_lsp,amp_ls,\
-    #            q, v[i,2],v[i,10], rhtrack ))
 
 
 def old_quad(azim):
