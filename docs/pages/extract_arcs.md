@@ -96,6 +96,7 @@ Some commonly used parameters. All keyword arguments below can be passed to
 | `cf` | float | Scale factor = wavelength / 2 (meters) |
 | `gnssir_processing_results` | dict or None | gnssir result for this arc (requires `attach_results=True`) |
 | `phase_processing_results` | dict or None | phase result for this arc (requires `attach_results=True`) |
+| `vwc_track_results` | dict or None | VWC track data for this arc (requires `attach_results=True` and track files from `vwc -vegetation_model 2 -save_tracks T`) |
 
 #### Data keys
 

@@ -31,6 +31,14 @@ PHASE_COLUMNS = [
     'emin', 'emax', 'DelT', 'aprioriRH', 'freq', 'estRH', 'pk2noise', 'LSPAmp',
 ]
 
+VWC_TRACK_COLUMNS = [
+    'Year', 'DOY', 'Hour', 'MJD', 'AzMinEle',
+    'PhaseOrig', 'AmpLSPOrig', 'AmpLSOrig', 'DeltaRHOrig',
+    'AmpLSPSmooth', 'AmpLSSmooth', 'DeltaRHSmooth',
+    'PhaseVegCorr', 'SlopeCorr', 'SlopeFinal',
+    'PhaseCorrected', 'VWC',
+]
+
 # (snr_column, constellation_offset) -> user-facing freq code
 # Constellation offset derived from sat number: GPS=0, GLONASS=100, Galileo=200, Beidou=300
 _COL_CONST_TO_FREQ = {
@@ -355,6 +363,94 @@ def attach_phase_processing_results(
     return arcs
 
 
+def attach_vwc_track_results(
+    arcs: List[Tuple[Dict, Dict]],
+    station: str,
+    year: int,
+    doy: int,
+    extension: str = '',
+    az_tolerance: float = 15.0,
+    time_tolerance: float = 0.17,
+) -> List[Tuple[Dict, Dict]]:
+    """Attach VWC track results from ``vwc -save_tracks T -vegetation_model 2``.
+
+    Matches track file rows to arcs by sat, freq suffix, azimuth, and hour.
+    Sets ``metadata['vwc_track_results']`` to a dict keyed by
+    :data:`VWC_TRACK_COLUMNS`, or ``None``.
+    """
+    import glob
+    import re
+    from gnssrefl.phase_functions import get_temporal_suffix
+
+    def _set_all_none():
+        for metadata, _data in arcs:
+            metadata['vwc_track_results'] = None
+        return arcs
+
+    refl_code = os.environ.get('REFL_CODE', '')
+    if not refl_code:
+        return _set_all_none()
+
+    subdir = os.path.join(station, extension) if extension else station
+    track_dir = os.path.join(refl_code, 'Files', subdir, 'individual_tracks')
+    if not os.path.isdir(track_dir):
+        return _set_all_none()
+
+    # Parse track filenames: az{NNN}_sat{NN}_{station}_{year}{suffix}.txt
+    filename_re = re.compile(r'az(\d{3})_sat(\d{2})_')
+    sat_lookup: Dict[int, List[Tuple[int, str]]] = {}
+    for fpath in glob.glob(os.path.join(track_dir, 'az*_sat*_*.txt')):
+        m = filename_re.match(os.path.basename(fpath))
+        if m:
+            sat_lookup.setdefault(int(m.group(2)), []).append((int(m.group(1)), fpath))
+    if not sat_lookup:
+        return _set_all_none()
+
+    vwc_fields = {name: (i, float) for i, name in enumerate(VWC_TRACK_COLUMNS)}
+    for col in ('Year', 'DOY', 'MJD'):
+        vwc_fields[col] = (VWC_TRACK_COLUMNS.index(col), int)
+
+    for metadata, _data in arcs:
+        metadata['vwc_track_results'] = None
+        candidates = sat_lookup.get(metadata['sat'])
+        if not candidates:
+            continue
+
+        try:
+            freq_suffix = get_temporal_suffix(metadata['freq'])
+        except Exception:
+            continue
+        candidates = [(az, fp) for az, fp in candidates if freq_suffix in os.path.basename(fp)]
+        if not candidates:
+            continue
+
+        # Closest azimuth within tolerance
+        az_dists = np.array([_circular_distance_deg(metadata['az_min_ele'], az) for az, _ in candidates])
+        best_i = int(np.argmin(az_dists))
+        if az_dists[best_i] > az_tolerance:
+            continue
+
+        track_data = _load_result_file(candidates[best_i][1])
+        if track_data is None:
+            continue
+        day_mask = (track_data[:, 0].astype(int) == year) & (track_data[:, 1].astype(int) == doy)
+        day_rows = track_data[day_mask]
+        if len(day_rows) == 0:
+            continue
+
+        # Nearest-neighbor on Hour
+        hour_diffs = np.abs(day_rows[:, 2] - metadata['arc_timestamp'])
+        best_row_i = int(np.argmin(hour_diffs))
+        if hour_diffs[best_row_i] > time_tolerance:
+            continue
+        row = day_rows[best_row_i]
+        metadata['vwc_track_results'] = {
+            name: typ(row[col]) for name, (col, typ) in vwc_fields.items()
+        }
+
+    return arcs
+
+
 def extract_arcs_from_station(
     station: str,
     year: int,
@@ -390,12 +486,14 @@ def extract_arcs_from_station(
         Hours of data to include from adjacent days for midnight-crossing arcs.
         Default: 0 (single day only)
     attach_results : bool
-        If True, look up the gnssir result file and phase result file, attaching
-        processing results to each arc's metadata via
-        ``attach_gnssir_processing_results()`` and
-        ``attach_phase_processing_results()``. Arcs with no matching result get
-        ``gnssir_processing_results = None`` and/or
-        ``phase_processing_results = None``. Default: False
+        If True, look up the gnssir result file, phase result file, and VWC
+        individual track files, attaching processing results to each arc's
+        metadata via ``attach_gnssir_processing_results()``,
+        ``attach_phase_processing_results()``, and
+        ``attach_vwc_track_results()``. Arcs with no matching result get
+        ``gnssir_processing_results = None``,
+        ``phase_processing_results = None``, and/or
+        ``vwc_track_results = None``. Default: False
     extension : str
         Subdirectory under ``$REFL_CODE/<year>/results/<station>/`` where
         result files are stored (e.g. ``'gnssir'``). Only used when
@@ -449,6 +547,8 @@ def extract_arcs_from_station(
         else:
             for metadata, _data in arcs:
                 metadata['phase_processing_results'] = None
+
+        attach_vwc_track_results(arcs, station, year, doy, extension)
 
     return arcs
 
