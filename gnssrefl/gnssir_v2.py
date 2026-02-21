@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import math
 import numpy as np
 import os
-import pickle
 import scipy.interpolate
 import scipy.signal
 import subprocess
@@ -172,30 +171,6 @@ def gnssir_guts_v2(station,year,doy, snr_type, extension,lsp, debug):
     if (dec != 1):
         print('Using decimation value: ', dec)
 
-    if 'savearcs' in lsp:
-        test_savearcs = lsp['savearcs']
-    else:
-        test_savearcs = False
-
-    # default will be plain txt
-    if 'savearcs_format' in lsp:
-        savearcs_format = lsp['savearcs_format']
-    else:
-        savearcs_format = 'txt'
-
-    # this is for savearcs, txt
-    docstring = 'arrays are eangles (degrees), dsnrData is SNR with/DC removed, and sec (seconds of the day),\n'
-
-    # Use FileManagement for arcs directory with extension support  
-    fm = FileManagement(station, "arcs_directory", year=year, doy=doy, extension=extension)
-    sdir = str(fm.get_directory_path(ensure_directory=test_savearcs)) + '/'
-    if test_savearcs:
-        print('Writing individual arcs (elevation angle, SNR) to ', sdir)
-        if not os.path.isdir(sdir):
-            print('Make output directories for arcs files')
-            subprocess.call(['mkdir', '-p', sdir])
-        if not os.path.isdir(sdir + 'failQC/'):
-            subprocess.call(['mkdir', '-p', sdir + 'failQC'])
     ann = g.make_nav_dirs(year) # make sure directories are there for orbits
     g.result_directories(station,year,extension) # make directories for the LSP results
 
@@ -615,105 +590,6 @@ def open_gnssir_logfile(station,year,doy,extension):
     fileid.write('gnssrefl version {0:s} \n'.format(v))
 
     return fileid, filename
-
-def arc_name(sdir,satNu,f,arcnum,avgAzim):
-    """
-    creates filename for SNR arc output
-
-    Parameters
-    ----------
-    sdir: str
-        output directory
-    satNu : int
-        satellite number
-    f : int
-        frequency
-    arcnum : int
-        arc number
-    avgAzim: float
-        average azimuth, degrees
-
-    Returns
-    -------
-    newffile : str
-        filename of outputs
-    """
-    # 
-    cazim = '_az' + '{:03d}'.format(round(avgAzim))
-    #cazim = '_az' + '{:03d}'.format(int(np.rint(avgAzim)))
-    csat = '{:03d}'.format(satNu)
-    cf = ''
-    # must have a function that does this ... but in the meantime
-    if (f < 100):
-        constell = 'G'
-        fout = f
-    elif (f > 100) & (f < 200):
-        constell = 'R'
-        fout = f - 100
-    elif (f > 200) & (f < 300):
-        fout = f - 200
-        constell = 'E'
-    else: 
-        fout = f - 300
-        constell = 'C'
-
-    # take care of L2C special frequency
-    if (f == 20):
-        cf = '_L2_'          
-    # otherwise
-    else:
-        cf = '_L' + str(fout)  + '_'
-
-    cf = cf + constell  + cazim
-
-    if len(cf) > 0:
-        newffile = sdir + 'sat' + csat + cf + '.txt'
-    else:
-        newffile = ''
-
-    return newffile
-
-def write_out_arcs(newffile,eangles,dsnrData,sec,file_info,savearcs_format):
-    """
-    Writes out files of rising and setting arcs analyzed in gnssir.  Saved 
-    data are elevation angles, and SNR data with direct signal remoevd.
-    The file location is the first input. 
-
-    Parameters
-    ----------
-    newffile : str
-        name of the output file
-    eangles : numpy array of floats
-        elevation angles in degrees
-    dsnrData : numpy array of floats
-        SNR data, with DC removed
-    sec : numpy array of floats
-        seconds of the day (UTC, though really GPS time)
-    file_info: list
-        satNu, f, avgAzim, year,doy,meanTime, docstring
-    savearcs_format : str
-        whether file is txt or pickle
-
-    """
-    headerline = ' elev-angle (deg), dSNR (volts/volts), sec of day'
-    [station,satNu,f,avgAzim,year,month,day,doy,meanTime,docstring] = file_info
-    # gotta be a better way ... but in the mean time
-    MJD = g.getMJD(year,month,day, meanTime)
-
-    fm = '%12.7f  %12.7f  %10.0f'
-    xyz = np.vstack((eangles,dsnrData,sec)).T
-    if savearcs_format == 'txt':
-        np.savetxt(newffile, xyz, fmt=fm, delimiter=' ', newline='\n',comments='%',header=headerline)
-    else:
-        pname = newffile[:-4] + '.pickle'
-        fff = open(pname, 'wb')
-        pickle.dump([station,eangles,dsnrData,sec,satNu,f,avgAzim,year,doy,meanTime,MJD,docstring], fff)
-        fff.close()
-
-#   doc1 = 'arrays are eangles (degrees), dsnrData is SNR with/DC removed, and sec (seconds of the day),\n'
-#   doc2 = 'avgAzim is arc azimuth in degrees , doy is day of year,\n'
-#   doc3 = 'f is frequency, meanTime is avg hours in UTC for the arc.'
-#   docstring = doc1+doc2+doc3
 
 def retrieve_Hdates(a):
     """

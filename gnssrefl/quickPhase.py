@@ -29,11 +29,13 @@ def parse_arguments():
     parser.add_argument("-par", default=None, type=int, help="Number of processes to spawn (up to 10)")
     parser.add_argument("-midnite", default=None, type=str, help="load adjacent day data for midnight-crossing arcs (default is true)")
     parser.add_argument("-ampl", default=None, type=float, help="Min spectral amplitude")
+    parser.add_argument("-savearcs", default=None, type=str, help="save individual arcs, default is False")
+    parser.add_argument("-savearcs_format", default=None, type=str, help="format of saved arcs (txt or pickle), default is txt")
 
     args = parser.parse_args().__dict__
 
     # convert all expected boolean inputs from strings to booleans
-    boolean_args = ['plt', 'screenstats', 'gzip', 'midnite']
+    boolean_args = ['plt', 'screenstats', 'gzip', 'midnite', 'savearcs']
     args = str2bool(args, boolean_args)
 
     # only return a dictionary of arguments that were added from the user - all other defaults will be set in code below
@@ -41,7 +43,7 @@ def parse_arguments():
 
 
 def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end: int = None, snr: int = 66,
-        fr: str = None, e1: float = None, e2: float = None, plt: bool = False, screenstats: bool = False, gzip: bool = True, extension: str = '', par: int = None, midnite: bool = True, ampl: float = None):
+        fr: str = None, e1: float = None, e2: float = None, plt: bool = False, screenstats: bool = False, gzip: bool = True, extension: str = '', par: int = None, midnite: bool = True, ampl: float = None, savearcs: bool = False, savearcs_format: str = None):
     """
     quickphase computes phase, which are subquently used in vwc. The command line call is phase
     (which maybe we should change).
@@ -150,6 +152,9 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
     lsp['screenstats'] = screenstats
     lsp['midnite'] = midnite
     lsp['gzip'] = gzip
+    lsp['savearcs'] = savearcs
+    if savearcs_format is not None:
+        lsp['savearcs_format'] = savearcs_format
 
     # Set up timing and parallel processing
     t1 = time.time()

@@ -9,7 +9,7 @@ import gnssrefl.gps as g
 from gnssrefl.utils import FileManagement, FileTypes, format_qc_summary
 import gnssrefl.daily_avg_cl as da
 import gnssrefl.gnssir_v2 as gnssir
-from gnssrefl.extract_arcs import extract_arcs_from_file, extract_arcs_from_station, _circular_distance_deg
+from gnssrefl.extract_arcs import extract_arcs_from_file, extract_arcs_from_station, _circular_distance_deg, move_arc_to_failqc
 from functools import partial
 from scipy import optimize
 from scipy.interpolate import interp1d
@@ -747,6 +747,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
     screenstats = lsp.get('screenstats', False)
     midnite = lsp.get('midnite', True)
     gzip = lsp.get('gzip', True)
+    savearcs = lsp.get('savearcs', False)
     compute_lsp = True
 
     # get the SNR filename
@@ -804,113 +805,119 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                 n_filter_tooclose = 0; n_filter_noise = 0; n_filter_amp = 0
                 n_filter_pk2noise = 0; n_filter_delT = 0; n_saved = 0
                 for meta, data in all_arcs:
-                    sat_number = meta['sat']
-                    az_min_ele = meta['az_min_ele']
-                    cf = meta['cf']
+                    _arc_passed = False
+                    try:
+                        sat_number = meta['sat']
+                        az_min_ele = meta['az_min_ele']
+                        cf = meta['cf']
 
-                    # Match arc to apriori track by satellite and circular distance to track avg azimuth
-                    matching_track = None
-                    for track in apriori_tracks:
-                        if track['sat'] == sat_number and _circular_distance_deg(az_min_ele, track['track_azim']) <= 3:
-                            matching_track = track
-                            break
+                        # Match arc to apriori track by satellite and circular distance to track avg azimuth
+                        matching_track = None
+                        for track in apriori_tracks:
+                            if track['sat'] == sat_number and _circular_distance_deg(az_min_ele, track['track_azim']) <= 3:
+                                matching_track = track
+                                break
 
-                    if matching_track is None:
-                        n_filter_track += 1
-                        continue
+                        if matching_track is None:
+                            n_filter_track += 1
+                            continue
 
-                    # ediff QC: check arc elevation coverage
-                    if (meta['ele_start'] - e1) > ediff:
-                        n_filter_ediff += 1
-                        continue
-                    if (meta['ele_end'] - e2) < -ediff:
-                        n_filter_ediff += 1
-                        continue
+                        # ediff QC: check arc elevation coverage
+                        if (meta['ele_start'] - e1) > ediff:
+                            n_filter_ediff += 1
+                            continue
+                        if (meta['ele_end'] - e2) < -ediff:
+                            n_filter_ediff += 1
+                            continue
 
-                    rh_apriori = matching_track['rh_apriori']
-                    track_azim = matching_track['track_azim']
+                        rh_apriori = matching_track['rh_apriori']
+                        track_azim = matching_track['track_azim']
 
-                    # Data is already detrended and e1/e2 filtered by extract_arcs
-                    x, y = data['ele'], data['snr']
-                    nv = len(x)
+                        # Data is already detrended and e1/e2 filtered by extract_arcs
+                        x, y = data['ele'], data['snr']
+                        nv = len(x)
 
-                    utctime = meta['arc_timestamp']
-                    az_min_ele = meta['az_min_ele']
-                    del_t = meta['delT']
+                        utctime = meta['arc_timestamp']
+                        az_min_ele = meta['az_min_ele']
+                        del_t = meta['delT']
 
-                    # L2C/L5 satellite checks
-                    if (freq == 20) and (sat_number not in l2c_list):
-                        if screenstats:
-                            print(f'Sat {int(sat_number)} not transmitting L2C on {year}/{doy}')
-                        n_filter_freq += 1
-                        continue
+                        # L2C/L5 satellite checks
+                        if (freq == 20) and (sat_number not in l2c_list):
+                            if screenstats:
+                                print(f'Sat {int(sat_number)} not transmitting L2C on {year}/{doy}')
+                            n_filter_freq += 1
+                            continue
 
-                    if (freq == 5) and (sat_number not in l5_list):
-                        if screenstats:
-                            print(f'Sat {int(sat_number)} not transmitting L5 on {year}/{doy}')
-                        n_filter_freq += 1
-                        continue
-
-                    if screenstats:
-                        print(f'Sat {sat_number:3.0f} Azimuth {track_azim:5.1f} RH {rh_apriori:6.2f} {nv:5.0f}')
-
-                    max_f, max_amp, emin_obs, emax_obs, rise_set, px, pz = g.strip_compute(x, y, cf, max_height,
-                                                                                       desired_p, min_height)
-
-                    tooclose = False
-                    if (max_f == 0) and (max_amp == 0):
-                        tooclose = True
-                    if abs(max_f - min_height) < 0.10:
-                        tooclose = True
-                    if abs(max_f - max_height) < 0.10:
-                        tooclose = True
-
-                    nij = pz[(px > noise_region[0]) & (px < noise_region[1])]
-                    noise = 0
-                    if len(nij) > 0:
-                        noise = np.mean(nij)
-                        obs_pk2noise = max_amp/noise
+                        if (freq == 5) and (sat_number not in l5_list):
+                            if screenstats:
+                                print(f'Sat {int(sat_number)} not transmitting L5 on {year}/{doy}')
+                            n_filter_freq += 1
+                            continue
 
                         if screenstats:
-                            print(f'>> LSP RH {max_f:7.3f} m {obs_pk2noise:6.1f} Amp {max_amp:6.1f} {min_amp:6.1f} ')
-                    else:
-                        max_amp = 0
+                            print(f'Sat {sat_number:3.0f} Azimuth {track_azim:5.1f} RH {rh_apriori:6.2f} {nv:5.0f}')
 
-                    if tooclose:
-                        n_filter_tooclose += 1
-                        continue
-                    if max_amp == 0:
-                        n_filter_noise += 1
-                        continue
-                    if max_amp <= min_amp:
-                        n_filter_amp += 1
-                        continue
-                    if max_amp / noise <= PkNoise:
-                        n_filter_pk2noise += 1
-                        continue
-                    if del_t >= delTmax:
-                        n_filter_delT += 1
-                        continue
+                        max_f, max_amp, emin_obs, emax_obs, rise_set, px, pz = g.strip_compute(x, y, cf, max_height,
+                                                                                           desired_p, min_height)
 
-                    x_data = np.sin(np.deg2rad(x))
-                    y_data = y
-                    test_function_apriori = partial(test_func_new, rh_apriori=rh_apriori,freq=freq)
-                    params, params_covariance = optimize.curve_fit(test_function_apriori, x_data, y_data, p0=[2, 2])
+                        tooclose = False
+                        if (max_f == 0) and (max_amp == 0):
+                            tooclose = True
+                        if abs(max_f - min_height) < 0.10:
+                            tooclose = True
+                        if abs(max_f - max_height) < 0.10:
+                            tooclose = True
 
-                    phase = params[1]*180/np.pi
-                    min_el = min(x); max_el = max(x)
-                    amp = np.absolute(params[0])
-                    raw_amp = params[0]
-                    if phase > 360:
-                        phase = phase - 360
+                        nij = pz[(px > noise_region[0]) & (px < noise_region[1])]
+                        noise = 0
+                        if len(nij) > 0:
+                            noise = np.mean(nij)
+                            obs_pk2noise = max_amp/noise
+
+                            if screenstats:
+                                print(f'>> LSP RH {max_f:7.3f} m {obs_pk2noise:6.1f} Amp {max_amp:6.1f} {min_amp:6.1f} ')
+                        else:
+                            max_amp = 0
+
+                        if tooclose:
+                            n_filter_tooclose += 1
+                            continue
+                        if max_amp == 0:
+                            n_filter_noise += 1
+                            continue
+                        if max_amp <= min_amp:
+                            n_filter_amp += 1
+                            continue
+                        if max_amp / noise <= PkNoise:
+                            n_filter_pk2noise += 1
+                            continue
+                        if del_t >= delTmax:
+                            n_filter_delT += 1
+                            continue
+
+                        x_data = np.sin(np.deg2rad(x))
+                        y_data = y
+                        test_function_apriori = partial(test_func_new, rh_apriori=rh_apriori,freq=freq)
+                        params, params_covariance = optimize.curve_fit(test_function_apriori, x_data, y_data, p0=[2, 2])
+
+                        phase = params[1]*180/np.pi
+                        min_el = min(x); max_el = max(x)
+                        amp = np.absolute(params[0])
+                        raw_amp = params[0]
                         if phase > 360:
                             phase = phase - 360
+                            if phase > 360:
+                                phase = phase - 360
 
-                    if raw_amp < 0:
-                        phase = phase + 180
+                        if raw_amp < 0:
+                            phase = phase + 180
 
-                    all_results.append([year, doy, utctime, phase, nv, az_min_ele, sat_number, amp, min_el, max_el, del_t, rh_apriori, freq, max_f, obs_pk2noise, max_amp])
-                    n_saved += 1
+                        all_results.append([year, doy, utctime, phase, nv, az_min_ele, sat_number, amp, min_el, max_el, del_t, rh_apriori, freq, max_f, obs_pk2noise, max_amp])
+                        n_saved += 1
+                        _arc_passed = True
+                    finally:
+                        if not _arc_passed and savearcs:
+                            move_arc_to_failqc(meta, station, year, doy, extension)
 
                 qc_filters = [
                     ('track', n_filter_track), ('ediff', n_filter_ediff),

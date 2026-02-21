@@ -11,12 +11,15 @@ Arcs are split when:
 2. Elevation angle direction reverses (rising <-> setting)
 """
 
+import glob
 import os
+import shutil
 
 import numpy as np
 from typing import List, Tuple, Optional, Dict, Any, Union
 
 from gnssrefl.read_snr_files import read_snr
+from gnssrefl.utils import FileManagement
 
 # Constants
 GAP_TIME_LIMIT = 600  # seconds (10 minutes)
@@ -450,6 +453,194 @@ def attach_vwc_track_results(
     return arcs
 
 
+def _get_arc_filename(sdir, sat, freq, az_min_ele, arc_timestamp):
+    """Build deterministic arc filename from metadata.
+
+    Parameters
+    ----------
+    sdir : str
+        Output directory (must end with '/')
+    sat : int
+        Satellite number
+    freq : int
+        Frequency code
+    az_min_ele : float
+        Azimuth at minimum elevation (degrees)
+    arc_timestamp : float
+        Arc midpoint in hours UTC
+
+    Returns
+    -------
+    str
+        Full file path, or '' if freq mapping fails
+    """
+    csat = f'{sat:03d}'
+
+    if freq < 100:
+        constell = 'G'
+        fout = freq
+    elif freq < 200:
+        constell = 'R'
+        fout = freq - 100
+    elif freq < 300:
+        constell = 'E'
+        fout = freq - 200
+    else:
+        constell = 'C'
+        fout = freq - 300
+
+    cf = '_L2_' if freq == 20 else f'_L{fout}_'
+    cf += constell
+
+    cazim = f'az{round(az_min_ele):03d}'
+    hh = int(arc_timestamp) % 24
+    mm = int((arc_timestamp % 1) * 60)
+    ctime = f'{hh:02d}{mm:02d}z'
+
+    return f'{sdir}sat{csat}{cf}{cazim}_{ctime}.txt'
+
+
+def _write_arc_file(fname, data, meta, station, year, doy, savearcs_format='txt'):
+    """Write a single arc to disk.
+
+    Parameters
+    ----------
+    fname : str
+        Output file path (for txt; .pickle replaces .txt extension)
+    data : dict
+        Arc data with keys 'ele', 'snr', 'seconds'
+    meta : dict
+        Arc metadata
+    station : str
+        Station name
+    year : int
+        Year
+    doy : int
+        Day of year
+    savearcs_format : str
+        'txt' or 'pickle'
+    """
+    import gnssrefl.gps as g
+
+    eangles = data['ele']
+    dsnr = data['snr']
+    sec = data['seconds']
+
+    if savearcs_format == 'txt':
+        headerline = ' elev-angle (deg), dSNR (volts/volts), sec of day'
+        xyz = np.vstack((eangles, dsnr, sec)).T
+        fmt = '%12.7f  %12.7f  %10.0f'
+        np.savetxt(fname, xyz, fmt=fmt, delimiter=' ', newline='\n',
+                   comments='%', header=headerline)
+    else:
+        import pickle
+        d = g.doy2ymd(year, doy)
+        month, day = d.month, d.day
+        MJD = g.getMJD(year, month, day, meta['arc_timestamp'])
+        docstring = ('arrays are eangles (degrees), dsnrData is SNR '
+                     'with/DC removed, and sec (seconds of the day),\n')
+        pname = fname[:-4] + '.pickle'
+        with open(pname, 'wb') as f:
+            pickle.dump([station, eangles, dsnr, sec, meta['sat'],
+                         meta['freq'], meta['az_min_ele'], year, doy,
+                         meta['arc_timestamp'], MJD, docstring], f)
+
+
+def setup_arcs_directory(station, year, doy, extension='', nooverwrite=False):
+    """Create arcs directory, optionally clearing old contents.
+
+    Parameters
+    ----------
+    station : str
+        Station name
+    year : int
+        Year
+    doy : int
+        Day of year
+    extension : str
+        Strategy extension
+    nooverwrite : bool
+        If True, do not clear existing arcs. Default False.
+
+    Returns
+    -------
+    str
+        Path to arcs directory (with trailing '/')
+    """
+    fm = FileManagement(station, "arcs_directory", year=year, doy=doy,
+                        extension=extension)
+    sdir = str(fm.get_directory_path(ensure_directory=True)) + '/'
+    if not nooverwrite:
+        for f in glob.glob(sdir + '*.txt') + glob.glob(sdir + '*.pickle'):
+            os.remove(f)
+        failqc = sdir + 'failQC/'
+        if os.path.isdir(failqc):
+            for f in glob.glob(failqc + '*.txt') + glob.glob(failqc + '*.pickle'):
+                os.remove(f)
+    os.makedirs(sdir + 'failQC/', exist_ok=True)
+    return sdir
+
+
+def save_arc(meta, data, sdir, station, year, doy, savearcs_format='txt'):
+    """Save a single arc file to sdir.
+
+    Parameters
+    ----------
+    meta : dict
+        Arc metadata (must contain sat, freq, az_min_ele, arc_timestamp,
+        num_pts, delT)
+    data : dict
+        Arc data (must contain ele, snr, seconds)
+    sdir : str
+        Output directory (with trailing '/')
+    station : str
+        Station name
+    year : int
+        Year
+    doy : int
+        Day of year
+    savearcs_format : str
+        'txt' or 'pickle'
+    """
+    if meta['num_pts'] <= 0 or meta['delT'] == 0:
+        return
+    fname = _get_arc_filename(sdir, meta['sat'], meta['freq'],
+                              meta['az_min_ele'], meta['arc_timestamp'])
+    if not fname:
+        return
+    _write_arc_file(fname, data, meta, station, year, doy, savearcs_format)
+
+
+def move_arc_to_failqc(meta, station, year, doy, extension=''):
+    """Move a saved arc file from arcs/ to arcs/failQC/.
+
+    Resolves the arcs directory path internally from station metadata.
+
+    Parameters
+    ----------
+    meta : dict
+        Arc metadata (must contain sat, freq, az_min_ele, arc_timestamp)
+    station : str
+        Station name
+    year : int
+        Year
+    doy : int
+        Day of year
+    extension : str
+        Strategy extension
+    """
+    fm = FileManagement(station, "arcs_directory", year=year, doy=doy,
+                        extension=extension)
+    sdir = str(fm.get_directory_path()) + '/'
+    fname = _get_arc_filename(sdir, meta['sat'], meta['freq'],
+                              meta['az_min_ele'], meta['arc_timestamp'])
+    if not fname or not os.path.isfile(fname):
+        return
+    dest = _get_arc_filename(sdir + 'failQC/', meta['sat'], meta['freq'],
+                             meta['az_min_ele'], meta['arc_timestamp'])
+    shutil.move(fname, dest)
+
+
 def extract_arcs_from_station(
     station: str,
     year: int,
@@ -548,6 +739,15 @@ def extract_arcs_from_station(
         snr_array = snr_array[valid_mask]
 
     arcs = extract_arcs(snr_array, freq=freq, year=year, doy=doy, **kwargs)
+
+    # Save individual arc files to disk (before attach_results, before return)
+    if lsp is not None and lsp.get('savearcs', False):
+        nooverwrite = lsp.get('nooverwrite', False)
+        savearcs_format = lsp.get('savearcs_format', 'txt')
+        sdir = setup_arcs_directory(station, year, doy, extension, nooverwrite)
+        print('Writing individual arcs to', sdir)
+        for meta, data in arcs:
+            save_arc(meta, data, sdir, station, year, doy, savearcs_format)
 
     if attach_results and extension:
         refl_code = os.environ.get('REFL_CODE', '')
