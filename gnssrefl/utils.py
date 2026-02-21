@@ -495,16 +495,54 @@ def set_environment(refl_code, orbits, exe):
           '\nenvironment variable EXE set to path', os.environ['EXE'])
 
 
-def format_qc_summary(freq, n_total, filters, n_saved):
+QC_FILTER_ORDER = ['track', 'ediff', 'L2C/L5', 'tooclose', 'noise', 'amp', 'pk2noise', 'delT']
+
+def format_qc_summary(freq, n_total, qc_counts, n_saved):
     """Build condensed QC summary showing only filters that rejected arcs."""
     parts = [f'Freq {freq} quality control: {n_total} arcs']
     running = n_total
-    for name, n_rejected in filters:
+    for name in QC_FILTER_ORDER:
+        n_rejected = qc_counts.get(name, 0)
         if n_rejected > 0:
             running -= n_rejected
             parts.append(f'{name} {running}')
     parts.append(f'{n_saved} saved')
     return ' -> '.join(parts)
+
+
+def check_arc_quality(meta, peak_rh, max_amp, noise, lsp):
+    """Apply QC filters to a single arc. Returns (passed, fail_reason)."""
+    e1 = lsp['e1']; e2 = lsp['e2']
+    ediff = lsp['ediff']
+    min_height = lsp['minH']; max_height = lsp['maxH']
+    pk_noise = lsp['PkNoise']; del_t_max = lsp['delTmax']
+    try:
+        req_amp = lsp['reqAmp'][lsp['freqs'].index(meta['freq'])]
+    except (ValueError, IndexError):
+        req_amp = lsp['reqAmp'][0]
+
+    if (meta['ele_start'] - e1) > ediff:
+        return False, 'ediff'
+    if (meta['ele_end'] - e2) < -ediff:
+        return False, 'ediff'
+
+    if (peak_rh == 0) and (max_amp == 0):
+        return False, 'tooclose'
+    if abs(peak_rh - min_height) < 0.10:
+        return False, 'tooclose'
+    if abs(peak_rh - max_height) < 0.10:
+        return False, 'tooclose'
+
+    if noise <= 0:
+        return False, 'noise'
+    if max_amp <= req_amp:
+        return False, 'amp'
+    if max_amp / noise <= pk_noise:
+        return False, 'pk2noise'
+    if meta['delT'] >= del_t_max:
+        return False, 'delT'
+
+    return True, None
 
 def get_sys():
     system = platform.platform().lower()

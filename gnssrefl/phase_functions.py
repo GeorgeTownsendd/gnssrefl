@@ -1,3 +1,4 @@
+from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -6,7 +7,7 @@ import sys
 
 
 import gnssrefl.gps as g
-from gnssrefl.utils import FileManagement, FileTypes, format_qc_summary
+from gnssrefl.utils import FileManagement, FileTypes, check_arc_quality, format_qc_summary
 import gnssrefl.daily_avg_cl as da
 import gnssrefl.gnssir_v2 as gnssir
 from gnssrefl.extract_arcs import extract_arcs_from_file, extract_arcs_from_station, _circular_distance_deg, move_arc_to_failqc
@@ -735,14 +736,10 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
     e1 = lsp.get('e1', 5)
     e2 = lsp.get('e2', 25)
     poly_v = lsp.get('polyV', 4)
-    min_amp = lsp.get('reqAmp', [6])[0]
     noise_region = lsp.get('NReg', [0.5, 8])
     min_height = lsp.get('minH', 0.5)
     max_height = lsp.get('maxH', 8)
     desired_p = lsp.get('desiredP', 0.01)
-    delTmax = lsp.get('delTmax', 120)
-    PkNoise = lsp.get('PkNoise', 2.8)
-    ediff = lsp.get('ediff', 2)
     pele = lsp.get('pele', [e1, e2])
     screenstats = lsp.get('screenstats', False)
     midnite = lsp.get('midnite', True)
@@ -801,9 +798,8 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
 
                 # Process each arc from extract_arcs
                 n_total = len(all_arcs)
-                n_filter_track = 0; n_filter_ediff = 0; n_filter_freq = 0
-                n_filter_tooclose = 0; n_filter_noise = 0; n_filter_amp = 0
-                n_filter_pk2noise = 0; n_filter_delT = 0; n_saved = 0
+                qc_counts = defaultdict(int)
+                n_saved = 0
                 for meta, data in all_arcs:
                     _arc_passed = False
                     try:
@@ -819,15 +815,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                                 break
 
                         if matching_track is None:
-                            n_filter_track += 1
-                            continue
-
-                        # ediff QC: check arc elevation coverage
-                        if (meta['ele_start'] - e1) > ediff:
-                            n_filter_ediff += 1
-                            continue
-                        if (meta['ele_end'] - e2) < -ediff:
-                            n_filter_ediff += 1
+                            qc_counts['track'] += 1
                             continue
 
                         rh_apriori = matching_track['rh_apriori']
@@ -845,13 +833,13 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                         if (freq == 20) and (sat_number not in l2c_list):
                             if screenstats:
                                 print(f'Sat {int(sat_number)} not transmitting L2C on {year}/{doy}')
-                            n_filter_freq += 1
+                            qc_counts['L2C/L5'] += 1
                             continue
 
                         if (freq == 5) and (sat_number not in l5_list):
                             if screenstats:
                                 print(f'Sat {int(sat_number)} not transmitting L5 on {year}/{doy}')
-                            n_filter_freq += 1
+                            qc_counts['L2C/L5'] += 1
                             continue
 
                         if screenstats:
@@ -860,41 +848,18 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                         max_f, max_amp, emin_obs, emax_obs, rise_set, px, pz = g.strip_compute(x, y, cf, max_height,
                                                                                            desired_p, min_height)
 
-                        tooclose = False
-                        if (max_f == 0) and (max_amp == 0):
-                            tooclose = True
-                        if abs(max_f - min_height) < 0.10:
-                            tooclose = True
-                        if abs(max_f - max_height) < 0.10:
-                            tooclose = True
-
                         nij = pz[(px > noise_region[0]) & (px < noise_region[1])]
-                        noise = 0
-                        if len(nij) > 0:
-                            noise = np.mean(nij)
-                            obs_pk2noise = max_amp/noise
+                        noise = np.mean(nij) if len(nij) > 0 else 0
 
-                            if screenstats:
-                                print(f'>> LSP RH {max_f:7.3f} m {obs_pk2noise:6.1f} Amp {max_amp:6.1f} {min_amp:6.1f} ')
-                        else:
-                            max_amp = 0
+                        if noise > 0 and screenstats:
+                            print(f'>> LSP RH {max_f:7.3f} m {max_amp/noise:6.1f} Amp {max_amp:6.1f} ')
 
-                        if tooclose:
-                            n_filter_tooclose += 1
-                            continue
-                        if max_amp == 0:
-                            n_filter_noise += 1
-                            continue
-                        if max_amp <= min_amp:
-                            n_filter_amp += 1
-                            continue
-                        if max_amp / noise <= PkNoise:
-                            n_filter_pk2noise += 1
-                            continue
-                        if del_t >= delTmax:
-                            n_filter_delT += 1
+                        passed, reason = check_arc_quality(meta, max_f, max_amp, noise, lsp)
+                        if not passed:
+                            qc_counts[reason] += 1
                             continue
 
+                        obs_pk2noise = max_amp / noise
                         x_data = np.sin(np.deg2rad(x))
                         y_data = y
                         test_function_apriori = partial(test_func_new, rh_apriori=rh_apriori,freq=freq)
@@ -919,13 +884,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                         if not _arc_passed and savearcs:
                             move_arc_to_failqc(meta, station, year, doy, extension)
 
-                qc_filters = [
-                    ('track', n_filter_track), ('ediff', n_filter_ediff),
-                    ('L2C/L5', n_filter_freq), ('tooclose', n_filter_tooclose),
-                    ('noise', n_filter_noise), ('amp', n_filter_amp),
-                    ('pk2noise', n_filter_pk2noise), ('delT', n_filter_delT),
-                ]
-                qc_lines.append(format_qc_summary(freq, n_total, qc_filters, n_saved))
+                qc_lines.append(format_qc_summary(freq, n_total, qc_counts, n_saved))
 
             if all_results:
                 all_results.sort(key=lambda r: r[2])  # sort by hour
