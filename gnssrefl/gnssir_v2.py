@@ -15,8 +15,6 @@ import warnings
 from importlib.metadata import version
 
 import gnssrefl.gps as g
-import gnssrefl.read_snr_files as snr
-import gnssrefl.refraction as refr
 import gnssrefl.retrieve_rh as r
 from gnssrefl.utils import FileManagement, FileTypes
 
@@ -198,226 +196,42 @@ def gnssir_guts_v2(station,year,doy, snr_type, extension,lsp, debug):
             subprocess.call(['mkdir', '-p', sdir])
         if not os.path.isdir(sdir + 'failQC/'):
             subprocess.call(['mkdir', '-p', sdir + 'failQC'])
-    d = g.doy2ymd(year,doy); month = d.month; day = d.day
-    dmjd, fracS = g.mjd(year,month,day,0,0,0)
     ann = g.make_nav_dirs(year) # make sure directories are there for orbits
     g.result_directories(station,year,extension) # make directories for the LSP results
 
-   # this defines the minimum number of points in an arc.  This depends entirely on the sampling
-    all_lsp = []
-   # rate for the receiver, so you should not assume this value is relevant to your case.
-    minNumPts = 20
-    p,T,irefr,humidity,Tm, lapse_rate = set_refraction_params(station, dmjd, lsp)
-    TempK = T + 273.15 # T is in celsius ... I think.
-    vapor = humidity
-    pressure = p
-    temperature = TempK
-    # peng used these variables. eventually consolidate
-    lat1=lsp['lat']; lon1=lsp['lon']; height1=lsp['ht'] ; mjd1 = dmjd
-    lat1R = math.radians(lat1); lon1R = math.radians(lon1); 
-
-    # only used by NITE
-    if 'apriori_rh' in lsp.keys():
-        RH_apriori = lsp['apriori_rh']  # a priori reflector height used in NITE
-    else:
-        RH_apriori = 5 # completely made up
-
-
-    if (irefr >= 3) & (irefr <= 6):
-        # N_ant is the index of refraction
-        # apparently this is wrong ?
-        #N_ant=refr.refrc_Rueger(p,humidity,TempK)[0]    #
-        N_ant = refr.refrc_Rueger(pressure-vapor, vapor, TempK)[0]   #get antenne refractivity
-        #ztd=2.3                                             #zenith total delay from PPP
-        # hydrostatic delay, Saastamoinen
-        zhd = refr.saastam2(pressure, lat1, height1)             
-        # wet delay 
-        zwd = refr.asknewet(humidity, Tm, lapse_rate)
-        print('Dry and wet zenith delays, meters ', round(zhd,3),round(zwd,3))
-        # if you had estimated total delay, you could get wet delay by 
-        ztd = zhd + zwd 
-
-# only doing one day at a time for now - but have started defining the needed inputs for using it
-    twoDays = False
-    obsfile2= '' # dummy value for name of file for the day before, when we get to that
-    fname, resultExist = g.LSPresult_name(station,year,doy,extension) 
+    fname, resultExist = g.LSPresult_name(station,year,doy,extension)
     if screenstats:
         logid, logfilename = open_gnssir_logfile(station,year,doy,extension)
     else:
-        logid = None 
+        logid = None
         logfilename = None
 
     if (lsp['nooverwrite'] ) & (resultExist ):
-        allGood = 0
         print('>>>>> The result file already exists for this day and you have selected the do not overwrite option')
-        obsfile = ''; obsfile2 = ''
-    else:
-        print('LSP Results will be written to:', fname)
-        print('Refraction parameters (pressure, temp, humidity, ModelNum)',np.round(p,3),np.round(T,3),np.round(humidity,3),irefr)
-        # uncompress here so you should not have to do it in read_snr_multiday ...
-        obsfile, obsfileCmp, snre = g.define_and_xz_snr(station,year,doy,snr_type) 
-
-
-        # Use buffer_hours to load adjacent day data when midnite option is enabled
-        buffer_hours = 2 if midnite else 0
-        if midnite:
-            print('Midnite option enabled: loading +/- 2 hours from adjacent days')
-        allGood, snrD, nrows, ncols = snr.read_snr(obsfile, buffer_hours=buffer_hours)
-        if allGood:
-            snrD = decimate_snr(snrD, allGood, dec)
-
-        # only compress if result was not found ...
-        snr.compress_snr_files(lsp['wantCompression'], obsfile, obsfile2, False, gzip) 
-
-    if allGood:
-        print('SNR data were read from: ', obsfile)
-        minObsE = min(snrD[:,1])
-        print(f'Min observed elev. angle {minObsE} for {station} {year}:{doy}/ Requested e1-e2: of {e1}-{e2}')
-        #if midnite:
-        #    test_minObsE = min(outD[:,1])
-            #print(f'Min observed elev. angle {test_minObsE} for SNR file the day before Requested e1-e2: of {e1}-{e2}')
-
-        # only apply this test for simple e1 and e2
-        if len(ellist) == 0:
-            if minObsE > (e1 + ediff):
-                print('You literally have no data above the minimum elevation angle setting')
-                print('which is e1 + ediff: ', e1 + ediff, ' If you do not like')
-                print('this QC constraint, then set ediff to be very large (10 degrees) in the json or use ')
-                print('the minimum elevation angle your receiver used. Exiting.')
-                sys.exit()
-
-        if (irefr == 3) or (irefr == 4):
-            # elev refraction, lsp, pressure, temperature- units?, time, sat
-            if irefr == 3:
-                print('Ulich refraction correction')
-            else:
-                print('Ulich refraction correction, time-varying')
-            # I do not understand why all these extra parameters are sent to this
-            # function as they are not used. Maybe I was doing some testing.
-            ele=refr.Ulich_Bending_Angle(snrD[:,1],N_ant,lsp,p,T,snrD[:,3],snrD[:,0])
-        elif (irefr == 5 ) or (irefr == 6):
-            ele,snrD = refraction_nite_mpf(irefr,snrD,mjd1,lat1R,lon1R,height1,RH_apriori,N_ant,zhd,zwd)
-        elif irefr == 0:
-            print('No refraction correction applied ')
-            ele = snrD[:,1]
-        else :
-            if irefr == 1:
-                if screenstats:
-                    print('Standard Bennett refraction correction')
-            else:
-                if screenstats:
-                    print('Standard Bennett refraction correction, time-varying')
-            ele = snrD[:,1]
-            ele=apply_refraction_corr(lsp,ele,p,T)
-
-        # Store refraction-corrected elevations back into snrD
-        snrD[:,1] = ele
-
-        r.retrieve_rh(station,year,doy,extension,lsp,snrD, screenstats, irefr,logid,logfilename,lsp['dbhz'])
-
         return
 
-def set_refraction_params(station, dmjd,lsp):
-    """
-    set values used in refraction correction
+    print('LSP Results will be written to:', fname)
+    irefr = lsp.get('refr_model', 1) if lsp.get('refraction', False) else 0
 
-    2024-aug-20, fixed the case where refraction is set to zero
+    buffer_hours = 2 if midnite else 0
+    if midnite:
+        print('Midnite option enabled: loading +/- 2 hours from adjacent days')
 
-    Parameters
-    ----------
-    station : str
-        4 character station name
+    from gnssrefl.extract_arcs import extract_arcs_from_station
+    try:
+        arcs = extract_arcs_from_station(
+            station, year, doy, freq=freqs, snr_type=snr_type,
+            buffer_hours=buffer_hours, dec=dec,
+            e1=e1, e2=e2, ellist=ellist, azlist=azvalues,
+            polyV=lsp['polyV'], pele=pele, dbhz=lsp['dbhz'],
+            gzip=gzip, lsp=lsp,
+            sat_list=lsp['onesat'],
+        )
+    except FileNotFoundError as e:
+        print(str(e))
+        return
 
-    dmjd : float
-        modified julian date
-
-    lsp : dictionary with information about the station
-        lat : float
-            latitude, deg
-        lon : float
-            longitude, deg
-        ht : float
-            height, ellipsoidal
-
-    Returns
-    -------
-    p : float
-        pressure, hPa
-    T : float
-        temperature, Celsius
-    irefr : int
-        refraction model number I believe, which is also sent, so not needed
-    e : float
-        water vapor pressure, hPa
-    Tm : float
-        temperature in Kelvin
-    la : float
-        lapse rate
-
-    """
-    # default values in case you have set refraction to zero.
-    # which you should not do ... but 
-    p = 0; T = 0; Tm = 0; la = 0
-
-
-
-    if 'refr_model' not in lsp.keys():
-        # default is always to use refraction model 1
-        # if for some reason it is missing ...
-        refraction_model = 1
-    else:
-        refraction_model = lsp['refr_model']
-
-
-    xdir = os.environ['REFL_CODE']
-    # default values
-    p = 0; T = 0; irefr = 0; e=0
-    if lsp['refraction']:
-        irefr = refraction_model
-        refr.readWrite_gpt2_1w(xdir, station, lsp['lat'], lsp['lon'])
-        # time varying was originally set to no for now (it = 1)
-        # now allows time varying for models 2, 4 and now MPF and NITE
-        if refraction_model in [2, 4, 5, 6]:
-            it = 0
-            print('Using time-varying refraction parameter inputs')
-        #elif (refraction_model == 5):
-        else:
-            it = 1
-        dlat = lsp['lat']*np.pi/180; dlong = lsp['lon']*np.pi/180; ht = lsp['ht']
-        p,T,dT,Tm,e,ah,aw,la,undu = refr.gpt2_1w(station, dmjd,dlat,dlong,ht,it)
-        # e is water vapor pressure, so humidity ??
-        #print("Pressure {0:8.2f} Temperature {1:6.1f} \n".format(p,T))
-    else:
-        irefr = 0 # ???
-
-    print('refraction model', refraction_model)
-    return p,T,irefr, e, Tm, la
-
-def apply_refraction_corr(lsp,ele,p,T):
-    """
-
-    Parameters
-    ----------
-    lsp : dictionary
-        info from make_json_input such as station lat and lon
-    ele : numpy array of floats
-        elevation angles  (deg)
-    p : float
-        pressure
-    T : float
-        temperature (C)
-
-    Returns
-    -------
-    ele : numpy array of floats
-         elevation angle (deg)
-    """
-    if lsp['refraction']:
-        #print('<<<<<< apply refraction correction >>>>>>')
-        corrE = refr.corr_el_angles(ele, p,T)
-        ele = corrE
-
-    return ele
+    r.retrieve_rh(station,year,doy,extension,lsp,arcs,screenstats,irefr,logid,logfilename,lsp['dbhz'])
 
 def local_update_plot(x,y,px,pz,ax1, ax2,failure):
     """
@@ -900,118 +714,6 @@ def write_out_arcs(newffile,eangles,dsnrData,sec,file_info,savearcs_format):
 #   doc2 = 'avgAzim is arc azimuth in degrees , doy is day of year,\n'
 #   doc3 = 'f is frequency, meanTime is avg hours in UTC for the arc.'
 #   docstring = doc1+doc2+doc3
-
-def decimate_snr(snrD, allGood, dec):
-    """
-    Parameters
-    ----------
-    snrD : numpy array of floats
-        loadtxt input of a snr file
-    allGood : bool
-        whether file exists?
-
-    dec : int
-        decimation value
-
-    Returns
-    -------
-    snrD : numpy array of floats
-        decimated array
-
-    """
-
-    if allGood and (dec != 1):
-        print('Invoking decimation option')
-        # does dec need to be a list??? was in original code
-        # get the indices
-        rem_arr = np.remainder( snrD[:,3], dec)
-        # find out where they are zero
-        iss =  (rem_arr == 0)
-        # and apply
-        snrD = snrD[iss,:]
-        # not sure nrows and ncols is being used ... so not redoing it
-
-    return snrD
-
-def refraction_nite_mpf(irefr,snrD,mjd1,lat1R,lon1R,height1,RH_apriori,N_ant,zhd,zwd):
-    """
-    Parameters
-    ----------
-    irefr: int
-    snrD : numpy array
-        contents of SNR file
-    mjd1 : float
-        modified julian day?
-    lat1R : float
-        latitude in radians
-    lon1R : float
-        longitude in radians
-    height : float
-        ellipsoidal ? height in meters
-    RH_apriori : float
-        aprori RH in meters
-    N_ant : float
-        refraction index I think
-    zhd : float
-        hydrostatic zenith tropo dely in meters
-    zwd : float
-        wet zenith tropo dely in meters
-    Returns
-    -------
-    ele : numpy array
-        corrected elevation angles, deg
-        
-    """
-    # NITE MODEL
-    # remove ele < 1.5 cause it blows up
-    i=snrD[:,1] > 1.5
-    snrD = snrD[i,:]
-    N = len(snrD[:,1])
-            # elevation angles, degrees
-    ele=snrD[:,1]
-    # zenith angle in radians
-    zenithA = 0.5*np.pi - np.radians(ele)
-    #get mapping function and derivatives
-
-    [gmf_h,dgmf_h,gmf_w,dgmf_w]=refr.gmf_deriv(mjd1, lat1R, lon1R,height1,zenithA)
-    [mpf, dmpf]=[refr.mpf_tot(gmf_h,gmf_w,zhd,zwd),refr.mpf_tot(dgmf_h,dgmf_w,zhd,zwd)]
-
-    ztd = zhd + zwd
-    # inputs apriori RH, elevation angle, refractive index, zenith delay, mpf ?, dmpf?
-    if irefr == 5:
-        print('NITE refraction correction, Peng et al. remove data < 1.5 degrees')
-        dE_NITE=refr.Equivalent_Angle_Corr_NITE(RH_apriori, ele, N_ant, ztd, mpf, dmpf)
-        ele = ele + dE_NITE 
-    else: 
-        print('MPF refraction correction, Wiliams and Nievinski')
-        dE_MPF= refr.Equivalent_Angle_Corr_mpf(ele,mpf,N_ant,RH_apriori)
-        ele = ele + dE_MPF 
-
-    return ele,snrD
-
-            # NITE MODEL
-            # remove ele < 1.5 cause it blows up
-            #i=snrD[:,1] > 1.5
-            #snrD = snrD[i,:]
-            #N = len(snrD[:,1])
-            ## elevation angles, degrees
-            #ele=snrD[:,1]
-            # zenith angle in radians
-            #zenithA = 0.5*np.pi - np.radians(ele)
-            #get mapping function and derivatives
-            #[gmf_h,dgmf_h,gmf_w,dgmf_w]=refr.gmf_deriv(mjd1, lat1R, lon1R,height1,zenithA)
-            #[mpf, dmpf]=[refr.mpf_tot(gmf_h,gmf_w,zhd,zwd),refr.mpf_tot(dgmf_h,dgmf_w,zhd,zwd)]
-
-            # inputs apriori RH, elevation angle, refractive index, zenith delay, mpf ?, dmpf?
-            #if irefr == 5:
-            #    print('NITE refraction correction, Peng et al. remove data < 1.5 degrees')
-            #    dE_NITE=refr.Equivalent_Angle_Corr_NITE(RH_apriori, ele, N_ant, ztd, mpf, dmpf)
-            #    ele = ele + dE_NITE 
-            #else: 
-            #    print('MPF refraction correction, Wiliams and Nievinski')
-            #    dE_MPF= refr.Equivalent_Angle_Corr_mpf(ele,mpf,N_ant,RH_apriori)
-
-
 
 def retrieve_Hdates(a):
     """

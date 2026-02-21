@@ -8,7 +8,7 @@ import gnssrefl.gnssir_v2 as guts
 import gnssrefl.gps as g
 from gnssrefl.utils import FileManagement, format_qc_summary
 
-def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,logfilename,dbhz):
+def retrieve_rh(station,year,doy,extension, lsp, arcs, screenstats, irefr,logid,logfilename,dbhz):
     """
     new worker code that estimates LSP from GNSS SNR data.
     it will now live here and be called by gnssir_v2.py
@@ -25,8 +25,8 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
         strategy extension
     lsp : dict
         inputs to LSP analysis
-    snrD : numpy array
-        contents of SNR file (may include adjacent day data if midnite option enabled)
+    arcs : list of (metadata, data) tuples
+        pre-extracted satellite arcs from extract_arcs_from_station
     screenstats : bool
         whether you want stats to the screen
     irefr: int
@@ -51,52 +51,17 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
     test_savearcs = lsp.get('savearcs', False)
     fm = FileManagement(station, "arcs_directory", year=year, doy=doy, extension=extension)
     sdir = str(fm.get_directory_path(ensure_directory=test_savearcs)) + '/'
-    
+
     all_lsp = [] # variable to save the results so you can sort them
 
     d = g.doy2ymd(year,doy); month = d.month; day = d.day
-
-    nrows,ncols=snrD.shape
-    # used in previous code ... these elevation angles have been refraction corrected
-    ele =  snrD[:,1]
-    sats = snrD[:,0]
-
-    onesat = lsp['onesat']; #screenstats = lsp['screenstats']
 
     e1=lsp['e1']; e2=lsp['e2']; minH = lsp['minH']; maxH = lsp['maxH']
     ediff = lsp['ediff']; NReg = lsp['NReg']
     plot_screen = lsp['plt_screen']
     PkNoise = lsp['PkNoise']; prec = lsp['desiredP']; delTmax = lsp['delTmax']
-
-    if 'ellist' in lsp.keys():
-        ellist = lsp['ellist']
-        if len(ellist) > 0:
-            print('Using an augmented elevation angle list', ellist)
-    else:
-        ellist = [];
-
-    if 'azval2' in lsp.keys():
-        azval2 = lsp['azval2'];
-        naz = int(len(azval2)/2)
-    else:
-        print('This module requires azval2 to be set in gnssir_input. This record is not present in your json.')
-        return
-
-    pele = lsp['pele'] ; pfitV = lsp['polyV']
     freqs = lsp['freqs'] ; reqAmp = lsp['reqAmp']
-
-    # allows negative azimuth value for first pair
-    azvalues = guts.rewrite_azel(azval2)
-    gzip = lsp['gzip']
-
-    if 'dec' in lsp.keys():
-        dec = int(lsp['dec'])
-    else:
-        dec = 1 # so Jupyter notebooks do not need to be rewritten
-
-    # no need to print to screen if default
-    if (dec != 1):
-        print('Using decimation value: ', dec)
+    reqAmp_dict = {f: reqAmp[i] for i, f in enumerate(freqs)}
 
     # this must have been something i was doing privately
     if 'savearcs' in lsp:
@@ -110,40 +75,33 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
     else:
         savearcs_format = 'txt'
 
+    # Group pre-extracted arcs by frequency
+    arcs_by_freq = {}
+    for meta, data in arcs:
+        arcs_by_freq.setdefault(meta['freq'], []).append((meta, data))
+
     if True: # so we don't have to reindent everything ...
         total_arcs = 0
-        ct = 0
         qc_lines = []
 #       the main loop a given list of frequencies
         for f in freqs:
+            freq_arcs = arcs_by_freq.get(f, [])
             found_results = False
-            if plot_screen: 
+            if plot_screen:
                 # no idea if this will work
                 fig, (ax1, ax2) = plt.subplots(2, 1,figsize=(10,7))
             rj = 0
             gj = 0
-            if screenstats: 
+            if screenstats:
                 logid.write('=================================================================================\n')
-                logid.write('Looking at {0:4s} {1:4.0f} {2:3.0f} frequency {3:3.0f} ReqAmp {4:7.2f} \n'.format(station, year, doy,f,reqAmp[ct]))
+                logid.write('Looking at {0:4s} {1:4.0f} {2:3.0f} frequency {3:3.0f} ReqAmp {4:7.2f} \n'.format(station, year, doy,f,reqAmp_dict[f]))
                 logid.write('=================================================================================\n')
-                #print('**** looking at frequency ', f, ' ReqAmp', reqAmp[ct], ' doy ', doy, 'ymd', year, month, day )
-
-#           get the list of satellites for this frequency
-            if onesat == None:
-                satlist = guts.find_mgnss_satlist(f,year,doy)
-            else:
-                # check that your requested satellite is the right frequency
-                satlist = guts.onesat_freq_check(onesat,f )
-
-            # Extract arcs
-            from gnssrefl.extract_arcs import extract_arcs
-            arcs = extract_arcs(snrD, freq=f, e1=e1, e2=e2, ellist=ellist, azlist=azvalues, sat_list=satlist, polyV=lsp['polyV'], pele=pele, dbhz=dbhz)
 
             # Process each arc
-            n_total = len(arcs)
+            n_total = len(freq_arcs)
             n_filter_ediff = 0; n_filter_tooclose = 0; n_filter_amp = 0
             n_filter_pk2noise = 0; n_filter_delT = 0
-            for a, (meta, data) in enumerate(arcs):
+            for a, (meta, data) in enumerate(freq_arcs):
                 # ediff QC: check arc elevation coverage
                 if (meta['ele_start'] - e1) > ediff:
                     n_filter_ediff += 1
@@ -169,7 +127,7 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
 
                 # LSP computation
                 MJD = g.getMJD(year,month,day, meanTime)
-                maxF, maxAmp, eminObs, emaxObs,riseSet,px,pz = g.strip_compute(x,y,cf,maxH,prec,pfitV,minH)
+                maxF, maxAmp, eminObs, emaxObs,riseSet,px,pz = g.strip_compute(x,y,cf,maxH,prec,minH)
 
                 tooclose = False
                 if (maxF == 0) & (maxAmp == 0):
@@ -191,7 +149,7 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
                 if abs(maxF - maxH) < 0.10:  # peak too close to max value
                     tooclose = True
 
-                if (not tooclose) & (delT < delTmax) & (maxAmp > reqAmp[ct]) & (maxAmp/Noise > PkNoise):
+                if (not tooclose) & (delT < delTmax) & (maxAmp > reqAmp_dict[f]) & (maxAmp/Noise > PkNoise):
                     # QC passed - save arc
                     if test_savearcs and (Nv > 0):
                         newffile = guts.arc_name(sdir,satNu,f,a,az_min_ele)
@@ -219,7 +177,7 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
                     # QC failed - count which filter caught it first
                     if tooclose:
                         n_filter_tooclose += 1
-                    elif maxAmp <= reqAmp[ct]:
+                    elif maxAmp <= reqAmp_dict[f]:
                         n_filter_amp += 1
                     elif maxAmp/Noise <= PkNoise:
                         n_filter_pk2noise += 1
@@ -233,7 +191,7 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
                     rj += 1
                     if screenstats:
                         logid.write('FAILED QC for Azimuth {0:.1f} Satellite {1:2.0f} UTC {2:5.2f} RH {3:5.2f} \n'.format(iAzim,satNu,UTCtime,maxF))
-                        g.write_QC_fails(delT,lsp['delTmax'],eminObs,emaxObs,e1,e2,ediff,maxAmp,Noise,PkNoise,reqAmp[ct],tooclose,logid)
+                        g.write_QC_fails(delT,lsp['delTmax'],eminObs,emaxObs,e1,e2,ediff,maxAmp,Noise,PkNoise,reqAmp_dict[f],tooclose,logid)
                     if plot_screen:
                         failed = True
                         guts.local_update_plot(x,y,px,pz,ax1,ax2,failed)
@@ -251,8 +209,6 @@ def retrieve_rh(station,year,doy,extension, lsp, snrD, screenstats, irefr,logid,
                 logid.write(qc_line + '\n')
                 logid.write('=================================================================================\n')
             total_arcs = gj + total_arcs
-# close the output files
-            ct += 1
             if found_results and plot_screen:
                 print('data found for this frequency: ',f)
                 ax1.set_xlabel('Elevation Angles (deg)')

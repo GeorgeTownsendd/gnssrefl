@@ -783,7 +783,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                     detrend=True, split_arcs=True,
                     screenstats=screenstats,
                     filter_to_day=True, buffer_hours=buffer_hours,
-                    lsp=lsp,
+                    lsp=lsp, gzip=gzip,
                 )
 
                 # Build apriori track lookup
@@ -855,7 +855,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                         print(f'Sat {sat_number:3.0f} Azimuth {track_azim:5.1f} RH {rh_apriori:6.2f} {nv:5.0f}')
 
                     max_f, max_amp, emin_obs, emax_obs, rise_set, px, pz = g.strip_compute(x, y, cf, max_height,
-                                                                                       desired_p, poly_v, min_height)
+                                                                                       desired_p, min_height)
 
                     tooclose = False
                     if (max_f == 0) and (max_amp == 0):
@@ -927,9 +927,6 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
             if qc_lines:
                 print('\n'.join(qc_lines))
 
-        # gzip SNR file if requested
-        if gzip:
-            subprocess.call(['gzip', obsfile])
 
 
 def low_pct(amp, basepercent):
