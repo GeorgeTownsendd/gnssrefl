@@ -766,6 +766,20 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
             # Load adjacent day data for midnight-crossing arcs (default: on)
             buffer_hours = 2 if midnite else 0
 
+            # Extract arcs for ALL frequencies in one call
+            all_arcs = extract_arcs_from_station(
+                station, year, doy, freq=fr_list, snr_type=snr_type,
+                e1=e1, e2=e2, polyV=poly_v, pele=pele,
+                screenstats=screenstats,
+                buffer_hours=buffer_hours,
+                lsp=lsp, gzip=gzip,
+            )
+
+            # Group arcs by frequency
+            arcs_by_freq = defaultdict(list)
+            for meta, data in all_arcs:
+                arcs_by_freq[meta['freq']].append((meta, data))
+
             qc_lines = []
             all_results = []
             for freq in fr_list:
@@ -774,15 +788,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
 
                 print('Analyzing Frequency ', freq, ' Year ', year, ' Day of Year ', doy)
 
-                # Extract arcs using gnssir-aligned processing (with refraction)
-                all_arcs = extract_arcs_from_station(
-                    station, year, doy, freq=freq, snr_type=snr_type,
-                    e1=e1, e2=e2, polyV=poly_v, pele=pele,
-                    detrend=True, split_arcs=True,
-                    screenstats=screenstats,
-                    filter_to_day=True, buffer_hours=buffer_hours,
-                    lsp=lsp, gzip=gzip,
-                )
+                freq_arcs = arcs_by_freq[freq]
 
                 # Build apriori track lookup
                 rows, columns = np.shape(apriori_results)
@@ -797,11 +803,11 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                     })
 
                 # Process each arc from extract_arcs
-                n_total = len(all_arcs)
+                n_total = len(freq_arcs)
                 qc_counts = defaultdict(int)
                 n_saved = 0
-                for meta, data in all_arcs:
-                    _arc_passed = False
+                for meta, data in freq_arcs:
+                    arc_passed = False
                     try:
                         sat_number = meta['sat']
                         az_min_ele = meta['az_min_ele']
@@ -879,9 +885,9 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
 
                         all_results.append([year, doy, utctime, phase, nv, az_min_ele, sat_number, amp, min_el, max_el, del_t, rh_apriori, freq, max_f, obs_pk2noise, max_amp])
                         n_saved += 1
-                        _arc_passed = True
+                        arc_passed = True
                     finally:
-                        if not _arc_passed and savearcs:
+                        if not arc_passed and savearcs:
                             move_arc_to_failqc(meta, station, year, doy, extension)
 
                 qc_lines.append(format_qc_summary(freq, n_total, qc_counts, n_saved))
