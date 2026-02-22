@@ -13,7 +13,6 @@ import scipy.signal
 import gnssrefl.gps as g
 import gnssrefl.refraction as refr
 import gnssrefl.rinex2snr as rinex
-import gnssrefl.gnssir_functions as gnssir_v2
 import gnssrefl.read_snr_files as snr
 from gnssrefl.extract_arcs import extract_arcs
 
@@ -192,10 +191,7 @@ def quickLook_function(station, year, doy, snr_type,f,e1,e2,minH,maxH,reqAmp,pel
         allpoints = 0
         axisSize =np.empty(shape=[0, 2])
 
-        if (satsel == None):
-            satlist = gnssir_v2.find_mgnss_satlist(f,year,doy)
-        else:
-            satlist = [satsel]
+        satlist = [satsel] if satsel is not None else None
 
         arcs = extract_arcs(snrD, freq=f, e1=e1, e2=e2, sat_list=satlist, polyV=polyV, pele=pele)
 
