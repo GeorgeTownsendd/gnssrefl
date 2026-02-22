@@ -86,9 +86,6 @@ def read_snr(obsfile, buffer_hours=0, screenstats=False):
 
     Returns
     -------
-    allGood : int
-        1, file was successfully loaded, 0 if not.
-        apparently this variable was defined when I did not know about booleans....
     f : numpy array
         contents of the SNR file
     r : int
@@ -96,27 +93,26 @@ def read_snr(obsfile, buffer_hours=0, screenstats=False):
     c : int
         number of columns in SNR file
 
+    Raises
+    ------
+    FileNotFoundError
+        If *obsfile* does not exist.
+    RuntimeError
+        If the file has no rows or no columns.
+
     """
-    allGood = 1
-    if os.path.isfile(obsfile):
-        f = np.loadtxt(obsfile,comments='%')
-    else:
-        print('No SNR file found')
-        allGood = 0
-        return allGood, 0, 0, 0
+    if not os.path.isfile(obsfile):
+        raise FileNotFoundError(f"SNR file not found: {obsfile}")
+
+    f = np.loadtxt(obsfile,comments='%')
     r,c = f.shape
-    if (r > 0) & (c > 0):
-        i= f[:,1] > 0
-        f=f[i,:]
-    if r == 0:
-        print('No rows in this file!')
-        allGood = 0
-    if c == 0:
-        print('No columns in this file!')
-        allGood = 0
+    if r == 0 or c == 0:
+        raise RuntimeError(f"SNR file is empty: {obsfile}")
+    i= f[:,1] > 0
+    f=f[i,:]
 
     # Handle buffer_hours for adjacent day data
-    if allGood and buffer_hours > 0:
+    if buffer_hours > 0:
         station, year, doy, snr_type = _parse_snr_filename(obsfile)
         buffer_seconds = buffer_hours * 3600
         arrays_to_stack = []
@@ -196,7 +192,7 @@ def read_snr(obsfile, buffer_hours=0, screenstats=False):
         # Update row/col counts
         r, c = f.shape
 
-    return allGood, f, r, c
+    return f, r, c
 
 
 def compress_snr_files(wantCompression, obsfile, obsfile2,TwoDays,gzip):

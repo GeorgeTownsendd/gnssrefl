@@ -647,13 +647,8 @@ def extract_arcs_from_station(
             f"doy={doy}, snr_type={snr_type}: {obsfile}"
         )
 
-    # Load SNR data (same as extract_arcs_from_file)
     screenstats = kwargs.get('screenstats', False)
-    allGood, snr_array, _, _ = read_snr(
-        obsfile, buffer_hours=buffer_hours, screenstats=screenstats,
-    )
-    if not allGood:
-        raise RuntimeError(f"read_snr failed for: {obsfile}")
+    snr_array, _, _ = read_snr(obsfile, buffer_hours=buffer_hours, screenstats=screenstats)
 
     if gzip and os.path.isfile(obsfile):
         subprocess.call(['gzip', '-f', obsfile])
@@ -739,19 +734,12 @@ def extract_arcs_from_file(
     Raises
     ------
     FileNotFoundError
-        If *obsfile* does not exist.
-    RuntimeError
-        If ``read_snr()`` fails to load the file.
+        If *obsfile* does not exist (raised by ``read_snr()``).
     """
-    if not os.path.isfile(obsfile):
-        raise FileNotFoundError(f"SNR file not found: {obsfile}")
-
     screenstats = kwargs.get('screenstats', False)
-    allGood, snr_array, _, _ = read_snr(
+    snr_array, _, _ = read_snr(
         obsfile, buffer_hours=buffer_hours, screenstats=screenstats,
     )
-    if not allGood:
-        raise RuntimeError(f"read_snr failed for: {obsfile}")
 
     if gzip and os.path.isfile(obsfile):
         subprocess.call(['gzip', '-f', obsfile])

@@ -148,11 +148,9 @@ def quickLook_function(station, year, doy, snr_type,f,e1,e2,minH,maxH,reqAmp,pel
     requireAmp = reqAmp[0]
 
     obsfile, obsfileCmp, snre =  g.define_and_xz_snr(station,year,doy,snr_type)
-    allGood, snrD, nrows, ncols = snr.read_snr(obsfile)
+    snrD, nrows, ncols = snr.read_snr(obsfile)
 
-    if allGood == 0:
-        print('file does not exist'); sys.exit()
-    else:
+    if True:
         # make output file for the quickLook RRH values, just so you can give them a quick look see
         # also used in the azimuth QC plot
         quicklog = logdir + '/rh_' + station + '.txt'
