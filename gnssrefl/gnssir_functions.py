@@ -15,7 +15,7 @@ from importlib.metadata import version
 
 import gnssrefl.gps as g
 import gnssrefl.retrieve_rh as r
-from gnssrefl.utils import FileManagement, FileTypes
+from gnssrefl.utils import FileManagement, FileTypes, rewrite_azel
 
 def gnssir_guts_v2(station,year,doy, snr_type, extension,lsp, debug):
     """
@@ -137,19 +137,14 @@ def gnssir_guts_v2(station,year,doy, snr_type, extension,lsp, debug):
     e1=lsp['e1']; e2=lsp['e2']; minH = lsp['minH']; maxH = lsp['maxH']
     ediff = lsp['ediff']; NReg = lsp['NReg']  
     PkNoise = lsp['PkNoise']; prec = lsp['desiredP']; delTmax = lsp['delTmax']
-    if 'azval2' in lsp.keys():
-        azval2 = lsp['azval2']; 
-        naz = int(len(azval2)/2)
-    else:
+    azvalues = rewrite_azel(lsp.get('azval2'))
+    if not azvalues:
         print('This module requires azval2 to be set in gnssir_input. This record is not present in your json.')
         sys.exit()
 
     pele = lsp['pele'] ; pfitV = lsp['polyV']
 
-    freqs = lsp['freqs'] ; reqAmp = lsp['reqAmp'] 
-
-    # allows negative azimuth value for first pair
-    azvalues = rewrite_azel(azval2)
+    freqs = lsp['freqs'] ; reqAmp = lsp['reqAmp']
 
     ok = g.is_it_legal(freqs)
     if not ok:
@@ -418,47 +413,6 @@ def find_mgnss_satlist(f,year,doy):
 
 
 
-def rewrite_azel(azval2):
-    """
-    Trying to allow regions that cross zero degrees azimuth
-
-    Parameters
-    ----------
-    azval2 : list of floats
-        input azimuth regions
-
-    Returns
-    -------
-    azelout : list of floats
-        azimuth regions without negative numbers ... 
-
-    """
-
-    # if nothing changes
-    azelout = azval2
-    #print('Requested azimuths: ', azval2)
-
-    # check for negative beginning azimuths
-    N2 = len(azval2) ; a1 = int(azval2[0]); a2 = int(azval2[1])
-
-    if (N2 % 2) != 0:
-        print('Azimuth regions must be in pairs. Please check the azval2 variable in your json input file')
-        sys.exit()
-    if (N2 == 2) & (a1 < 0):
-        azelout = [a1+360, 360, 0,  a2]
-    if (N2 == 4) & (a1 < 0):
-        azelout = [a1+360, 360, 0,  a2, int(azval2[2]), int(azval2[3])]
-    if (N2 == 6) & (a1 < 0):
-        azelout = [a1+360, 360, 0,  a2, int(azval2[2]), int(azval2[3]), int(azval2[4]), int(azval2[5])]
-    if (N2 == 8) & (a1 < 0):
-        azelout = [a1+360, 360, 0,  a2, azval2[2], azval2[3], azval2[4], azval2[5], azval2[6], azval2[7]]
-    if N2 > 8:
-        print('Not going to allow more than four azimuth regions ...')
-        sys.exit()
-
-    #print('Using azimuths: ', azelout)
-    return azelout
-
 def make_parallel_proc_lists_mjd(year, doy, year_end, doy_end, nproc):
     """
     make lists of dates for parallel processing to spawn multiple jobs
@@ -662,5 +616,3 @@ def convert_Hdates_mjd(Hdates,remove_hhmm):
         mjd_Hortho.append(m)
 
     return mjd_Hortho 
-
-

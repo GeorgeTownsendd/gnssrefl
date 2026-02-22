@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 import gnssrefl.gps as g
-import gnssrefl.gnssir_v2 as guts2
+import gnssrefl.gnssir_functions as guts2
 
 from gnssrefl.utils import str2bool, FileManagement, FileTypes
 

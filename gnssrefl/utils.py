@@ -9,6 +9,38 @@ from typing import get_type_hints
 from pathlib import Path
 
 
+def rewrite_azel(azval2):
+    """Normalize azimuth pair list so negative start azimuths wrap via 360.
+
+    For example, ``[-10, 50]`` becomes ``[350, 360, 0, 50]``.
+    Passes through ``None`` or empty lists unchanged.
+
+    Parameters
+    ----------
+    azval2 : list of floats or None
+        Azimuth region pairs (e.g. ``[0, 90, 180, 270]``).
+
+    Returns
+    -------
+    list of floats or None
+        Rewritten azimuth pairs with no negative values.
+    """
+    if not azval2:
+        return azval2
+
+    N2 = len(azval2)
+    if (N2 % 2) != 0:
+        raise ValueError('Azimuth regions must be in pairs. Check azval2.')
+
+    a1 = int(azval2[0]); a2 = int(azval2[1])
+    if a1 >= 0:
+        return list(azval2)
+
+    # First pair has negative start — split across 360
+    rest = [int(v) for v in azval2[2:]]
+    return [a1 + 360, 360, 0, a2] + rest
+
+
 def circular_mean_deg(angles):
     """Circular mean of angles in degrees, handling the 0/360 wrap correctly."""
     rad = np.deg2rad(angles)

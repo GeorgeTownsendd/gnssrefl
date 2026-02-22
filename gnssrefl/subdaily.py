@@ -16,7 +16,7 @@ from scipy.interpolate import interp1d
 import math
 
 # support code
-import gnssrefl.gnssir_v2 as guts2
+import gnssrefl.gnssir_functions as guts2
 import gnssrefl.gps as g
 import gnssrefl.sd_libs as sd
 

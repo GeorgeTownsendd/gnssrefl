@@ -7,7 +7,7 @@ from astropy.time import Time
 
 # gnssrefl specific code
 import gnssrefl.gps as g
-import gnssrefl.gnssir_v2 as guts2
+import gnssrefl.gnssir_functions as guts2
 
 import os
 import scipy

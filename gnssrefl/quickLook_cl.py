@@ -7,9 +7,7 @@ import sys
 
 # internal codes
 import gnssrefl.gps as g
-# old version
-#import gnssrefl.quickLook_function as quick
-import gnssrefl.quickLook_function2 as quick2
+import gnssrefl.quickLook_functions as quick2
 
 from gnssrefl.utils import validate_input_datatypes, str2bool
 

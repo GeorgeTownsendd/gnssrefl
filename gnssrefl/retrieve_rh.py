@@ -5,7 +5,7 @@ import os
 import subprocess
 import sys
 
-import gnssrefl.gnssir_v2 as guts
+import gnssrefl.gnssir_functions as guts
 import gnssrefl.gps as g
 from gnssrefl.extract_arcs import move_arc_to_failqc
 from gnssrefl.utils import FileManagement, check_arc_quality, format_qc_summary

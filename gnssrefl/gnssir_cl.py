@@ -9,7 +9,7 @@ import multiprocessing
 from functools import partial
 
 #import gnssrefl.gnssir as guts
-import gnssrefl.gnssir_v2 as guts2
+import gnssrefl.gnssir_functions as guts2
 import gnssrefl.gps as g
 import gnssrefl.refraction as refr
 

@@ -13,7 +13,7 @@ from datetime import date
 # my code
 import gnssrefl.gps as g
 import gnssrefl.sd_libs as sd
-import gnssrefl.gnssir_v2 as guts2
+import gnssrefl.gnssir_functions as guts2
 #
 
 def fbias_daily_avg(station):

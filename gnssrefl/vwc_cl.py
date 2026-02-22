@@ -11,7 +11,7 @@ from pathlib import Path
 
 import gnssrefl.phase_functions as qp
 import gnssrefl.gps as g
-import gnssrefl.gnssir_v2 as gnssir
+import gnssrefl.gnssir_functions as gnssir
 import gnssrefl.advanced_vegetation_correction as avc
 import gnssrefl.simple_vegetation_correction as svc
 

@@ -9,7 +9,7 @@ import time
 
 import gnssrefl.gps as g
 import gnssrefl.nmea2snr as nmea
-import gnssrefl.gnssir_v2 as guts2
+import gnssrefl.gnssir_functions as guts2
 
 from gnssrefl.utils import validate_input_datatypes, str2bool
 

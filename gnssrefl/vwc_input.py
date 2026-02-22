@@ -9,7 +9,7 @@ from pathlib import Path
 
 from gnssrefl.gps import l2c_l5_list, l1c_list
 from gnssrefl.utils import read_files_in_dir, FileTypes, FileManagement
-import gnssrefl.gnssir_v2 as guts2
+import gnssrefl.gnssir_functions as guts2
 import gnssrefl.phase_functions as qp
 from gnssrefl.phase_functions import get_vwc_frequency
 from gnssrefl.utils import circular_mean_deg, circular_distance_deg

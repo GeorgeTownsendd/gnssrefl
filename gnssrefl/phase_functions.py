@@ -7,11 +7,10 @@ import sys
 
 
 import gnssrefl.gps as g
-from gnssrefl.utils import FileManagement, FileTypes, check_arc_quality, format_qc_summary
+from gnssrefl.utils import FileManagement, FileTypes, check_arc_quality, format_qc_summary, rewrite_azel, circular_distance_deg
 import gnssrefl.daily_avg_cl as da
-import gnssrefl.gnssir_v2 as gnssir
+import gnssrefl.gnssir_functions as gnssir
 from gnssrefl.extract_arcs import extract_arcs_from_file, extract_arcs_from_station, move_arc_to_failqc
-from gnssrefl.utils import circular_distance_deg
 from functools import partial
 from scipy import optimize
 from scipy.interpolate import interp1d
@@ -746,6 +745,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
     midnite = lsp.get('midnite', True)
     gzip = lsp.get('gzip', True)
     savearcs = lsp.get('savearcs', False)
+    azvalues = rewrite_azel(lsp.get('azval2'))
     compute_lsp = True
 
     # get the SNR filename
@@ -771,6 +771,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
             all_arcs = extract_arcs_from_station(
                 station, year, doy, freq=fr_list, snr_type=snr_type,
                 e1=e1, e2=e2, polyV=poly_v, pele=pele,
+                azlist=azvalues,
                 screenstats=screenstats,
                 buffer_hours=buffer_hours,
                 lsp=lsp, gzip=gzip,
