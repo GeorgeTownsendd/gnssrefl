@@ -745,6 +745,8 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
     gzip = lsp.get('gzip', True)
     savearcs = lsp.get('savearcs', False)
     azvalues = rewrite_azel(lsp.get('azval2'))
+    dec = lsp.get('dec') or 1
+    dbhz = lsp.get('dbhz') or False
     compute_lsp = True
 
     # get the SNR filename
@@ -774,6 +776,8 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                 screenstats=screenstats,
                 buffer_hours=buffer_hours,
                 lsp=lsp, gzip=gzip,
+                dbhz=dbhz,
+                dec=dec,
             )
 
             # Group arcs by frequency
