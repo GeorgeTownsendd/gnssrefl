@@ -13,7 +13,7 @@ import gnssrefl.gnssir_functions as guts2
 import gnssrefl.gps as g
 import gnssrefl.refraction as refr
 
-from gnssrefl.utils import str2bool
+from gnssrefl.utils import str2bool, read_json_file, make_parallel_proc_lists_mjd
 
 
 def parse_arguments():
@@ -238,7 +238,7 @@ def gnssir(station: str, year: int, doy: int, snr: int = 66, plt: bool = False, 
     if exitS:
         sys.exit()
 
-    lsp = guts2.read_json_file(station, extension)
+    lsp = read_json_file(station, extension)
     # 
     if 'snr' in lsp:
         if lsp['snr'] is not None:
@@ -438,7 +438,7 @@ def gnssir(station: str, year: int, doy: int, snr: int = 66, plt: bool = False, 
             numproc = par
             print(year,doy,year_end,doy_end)
             # get a list of times in MJD associated with the multiple spawned processes
-            d,numproc=guts2.make_parallel_proc_lists_mjd(year, doy, year_end, doy_end, numproc)
+            d,numproc=make_parallel_proc_lists_mjd(year, doy, year_end, doy_end, numproc)
 
             # make a list of process IDs
             index_list = list(range(numproc))

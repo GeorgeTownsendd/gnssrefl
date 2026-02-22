@@ -15,9 +15,7 @@ import time
 
 import gnssrefl.gps as g
 import gnssrefl.rinex2snr as rnx
-import gnssrefl.gnssir_functions as guts2
-
-from gnssrefl.utils import validate_input_datatypes, str2bool
+from gnssrefl.utils import validate_input_datatypes, str2bool, read_json_file, make_parallel_proc_lists_mjd
 
 import multiprocessing
 from functools import partial
@@ -438,7 +436,7 @@ def rinex2snr(station: str, year: int, doy: int, snr: str = None, orb: str = Non
 
     # if it exists, you can now store information in the json, like samplerate and snr
     # set noexit cause otherwise it exits ...
-    lsp = guts2.read_json_file(station[0:4].lower(), extension,noexit=True)
+    lsp = read_json_file(station[0:4].lower(), extension,noexit=True)
 
     #print('Passed value of snr ', snr)
     if snr is None: # nothing on the command line
@@ -731,7 +729,7 @@ def rinex2snr(station: str, year: int, doy: int, snr: str = None, orb: str = Non
             # get a list of times in MJD associated with the multiple spawned processes
             # this does not work for skipping dates though ... 
 
-            datelist, numproc = guts2.make_parallel_proc_lists_mjd(year, doy, year_end, doy_end, numproc)
+            datelist, numproc = make_parallel_proc_lists_mjd(year, doy, year_end, doy_end, numproc)
             print(datelist)
 
             # make a list of process IDs

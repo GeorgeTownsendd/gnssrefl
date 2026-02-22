@@ -8,8 +8,7 @@ from scipy.stats import skew, kurtosis as scipy_kurtosis
 from pathlib import Path
 
 from gnssrefl.gps import l2c_l5_list, l1c_list
-from gnssrefl.utils import read_files_in_dir, FileTypes, FileManagement
-import gnssrefl.gnssir_functions as guts2
+from gnssrefl.utils import read_files_in_dir, FileTypes, FileManagement, read_json_file
 import gnssrefl.phase_functions as qp
 from gnssrefl.phase_functions import get_vwc_frequency
 from gnssrefl.utils import circular_mean_deg, circular_distance_deg
@@ -203,7 +202,7 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
         qp.write_apriori_rh(apriori_path_f, apriori_array, station, year, tmin, tmax)
         print('>>>> Apriori RH file written to ', apriori_path_f)
 
-    lsp = guts2.read_json_file(station, extension)
+    lsp = read_json_file(station, extension)
 
     # new one for minimum normalized amplitude
     lsp['vwc_min_norm_amp'] = 0.5;

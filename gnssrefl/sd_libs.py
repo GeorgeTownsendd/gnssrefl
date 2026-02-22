@@ -7,7 +7,7 @@ from astropy.time import Time
 
 # gnssrefl specific code
 import gnssrefl.gps as g
-import gnssrefl.gnssir_functions as guts2
+from gnssrefl.utils import read_json_file
 
 import os
 import scipy
@@ -805,7 +805,7 @@ def find_ortho_height(station,extension):
     """
 
     # this will create a nonsense Hortho
-    lsp = guts2.read_json_file(station, extension,noexit=True)
+    lsp = read_json_file(station, extension,noexit=True)
 
     if not lsp:
         print('No json - so no orthometric height can be determined')
@@ -1219,9 +1219,9 @@ def pickup_subdaily_json_defaults(xdir, station, extension):
 
     # changed default in subdaily to None instead of '' So have to check
     if extension is None:
-        lsp = guts2.read_json_file(station, '',noexit=True)
+        lsp = read_json_file(station, '',noexit=True)
     else:
-        lsp = guts2.read_json_file(station, extension,noexit=True)
+        lsp = read_json_file(station, extension,noexit=True)
 
     # check json for subdaily settings
     # if values not found, then set them to None

@@ -1,7 +1,6 @@
 import datetime
 import json
 import matplotlib.pyplot as plt
-import math
 import numpy as np
 import os
 import scipy.interpolate
@@ -257,69 +256,6 @@ def plot2screen(station, f,ax1,ax2,pltname):
     return True
 
 
-def read_json_file(station, extension,**kwargs):
-    """
-    picks up json instructions for calculation of lomb scargle periodogram
-    This was originally meant to be used by gnssir, but is now read by other functions.
-
-    Uses new directory structure:
-    - No extension: input/{station}/{station}.json with fallback to input/{station}.json
-    - With extension: input/{station}/{extension}/{station}.json with fallback to input/{station}.{extension}.json
-
-    Parameters
-    ----------
-    station : str
-        4 character station name
-
-    extension : str
-        subdirectory - default is ''
-
-    Returns
-    -------
-    lsp : dictionary
-
-    """
-    lsp = {} 
-    # pick up a new parameter - that will be True for people looking
-    # for the json but that aren't upset it does not exist.
-    noexit = kwargs.get('noexit',False)
-    silent = kwargs.get('silent',False)
-    
-    # Use FileManagement to find JSON file with proper fallback
-    json_manager = FileManagement(station, 'make_json', extension=extension)
-    json_path, format_type = json_manager.find_json_file()
-    
-    if json_path.exists():
-        if not silent:
-            if format_type in ['legacy_extension', 'legacy_station']:
-                print(f'Using JSON file (legacy directory): {json_path}')
-            else:
-                print(f'Using JSON file: {json_path}')
-        
-        with open(json_path) as f:
-            lsp = json.load(f)
-    else:
-        if noexit:
-            print('No json file found - but you have requested the code not exit')
-            lsp = {}
-            return lsp
-        else:
-            print('The json instruction file does not exist: ', json_path)
-            print('Please make with gnssir_input and run this code again.')
-            sys.exit()
-
-    if len(lsp['reqAmp']) < len(lsp['freqs']) :
-        print('Number of frequencies found in json: ', len(lsp['freqs']))
-        print('Number of required amplitudes found in json: ', len(lsp['reqAmp']))
-        print('You need to have a required Amplitude for each frequency.')
-        print('Please fix your json file: ', json_path)
-        sys.exit()
-
-    lsp['station'] = station
-
-    return lsp
-
-
 def onesat_freq_check(satlist,f ):
     """
     for a given satellite name - tries to determine
@@ -411,96 +347,6 @@ def find_mgnss_satlist(f,year,doy):
 
     return satlist
 
-
-
-def make_parallel_proc_lists_mjd(year, doy, year_end, doy_end, nproc):
-    """
-    make lists of dates for parallel processing to spawn multiple jobs
-
-    Parameters
-    ----------
-    year : int
-        year processing begins
-    doy : int
-        start day of year
-    year_end : int
-        year end of processing 
-    doy_end  : int
-        end day of year
-    nproc : int
-        requested number of processes to spawn
-
-    Returns
-    =======
-    datelist : dict
-        list of MJD 
-    numproc : int
-        number of datelists, thus number of processes to be used
-
-    """
-#   d = { 0: [2020, 251, 260], 1:[2020, 261, 270], 2: [2020, 271, 280], 3:[2020, 281, 290], 4:[2020,291,300] }
-    # number of days for spacing ... 
-    MJD1 = int(g.ydoy2mjd(year,doy))
-    MJD2 = int(g.ydoy2mjd(year_end,doy_end))
-    if MJD1 == MJD2:
-        return [MJD1, MJD2], None
-
-    Ndays  = math.ceil((MJD2-MJD1)/nproc) 
-    #print(Ndays)
-    d = {}
-    i=0
-    for day in range(MJD1, MJD2+1, Ndays):
-        end_day = day + Ndays - 1
-        if (end_day > MJD2):
-            l = [day, MJD2 ]
-        else:
-            l = [day, end_day]
-        d[i] = l
-        i=i+1
-
-    datelist = d
-    numproc = i
-    return datelist, numproc
-
-def make_parallel_proc_lists(year, doy1, doy2, nproc):
-    """
-    make lists of dates for parallel processing to spawn multiple jobs
-
-    Parameters
-    ----------
-    year : int
-        year of processing
-    doy1 : int
-        start day of year
-    doy 2 : int
-        end day of year
-
-    Returns
-    -------
-    datelist : dict
-        list of dates formatted as year doy1 doy2
-    numproc : int
-        number of datelists, thus number of processes to be used
-
-    """
-#   d = { 0: [2020, 251, 260], 1:[2020, 261, 270], 2: [2020, 271, 280], 3:[2020, 281, 290], 4:[2020,291,300] }
-    # number of days for spacing ... 
-    Ndays  = math.ceil((doy2-doy1)/nproc) 
-    #print(Ndays)
-    d = {}
-    i=0
-    for day in range(doy1, doy2+1, Ndays):
-        end_day = day+Ndays-1
-        if (end_day > doy2):
-            l = [year, day, doy2] 
-        else:
-            l = [year, day, end_day] 
-        d[i] = l
-        i=i+1
-
-    datelist = d
-    numproc = i
-    return datelist, numproc
 
 
 def open_gnssir_logfile(station,year,doy,extension):

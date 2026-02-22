@@ -5,9 +5,7 @@ import sys
 
 import gnssrefl.daily_avg as da
 import gnssrefl.gps as g
-import gnssrefl.gnssir_functions as guts2
-
-from gnssrefl.utils import str2bool
+from gnssrefl.utils import str2bool, read_json_file
 
 def parse_arguments():
     # must input start and end year
@@ -219,7 +217,7 @@ def daily_avg(station: str , medfilter: float, ReqTracks: int, txtfile: str = No
     # read in potential medfilter and reqtracks values
     # set noexit to True because I want to look for the json but 
     # don't want to require it
-    lsp = guts2.read_json_file(station, extension,noexit=True)
+    lsp = read_json_file(station, extension,noexit=True)
     # if valeus not found, then set them to None
     if 'daily_avg_medfilter' not in lsp:
         lsp['daily_avg_medfilter'] = None

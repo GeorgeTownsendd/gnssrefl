@@ -9,9 +9,7 @@ import time
 
 import gnssrefl.gps as g
 import gnssrefl.nmea2snr as nmea
-import gnssrefl.gnssir_functions as guts2
-
-from gnssrefl.utils import validate_input_datatypes, str2bool
+from gnssrefl.utils import validate_input_datatypes, str2bool, make_parallel_proc_lists_mjd
 
 import multiprocessing
 from functools import partial
@@ -223,7 +221,7 @@ def nmea2snr( station: str, year: int, doy: int, snr: int = 66, year_end: int=No
 
         # get a list of times in MJD associated with the multiple spawned processes
         # this does not work for skipping dates though ...
-        datelist, numproc = guts2.make_parallel_proc_lists_mjd(year, doy, year_end, doy_end, numproc)
+        datelist, numproc = make_parallel_proc_lists_mjd(year, doy, year_end, doy_end, numproc)
         print(datelist)
 
         # make a list of process IDs

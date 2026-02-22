@@ -6,9 +6,8 @@ import multiprocessing
 from functools import partial
 
 import gnssrefl.gps as g
-import gnssrefl.gnssir_functions as guts2
 import gnssrefl.phase_functions as qp
-from gnssrefl.utils import str2bool
+from gnssrefl.utils import str2bool, read_json_file, make_parallel_proc_lists_mjd
 
 
 def parse_arguments():
@@ -140,7 +139,7 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
         sys.exit()
 
     # Read station json and apply CLI overrides (same pattern as gnssir_cl.py)
-    lsp = guts2.read_json_file(station, extension)
+    lsp = read_json_file(station, extension)
     if e1 is not None:
         lsp['e1'] = e1
     if e2 is not None:
@@ -233,7 +232,7 @@ def process_phase_parallel(year, year_end, doy, doy_end, args, par):
     numproc = par
     print(year, doy, year_end, doy_end)
     # Get date ranges for parallel processing
-    d, numproc = guts2.make_parallel_proc_lists_mjd(year, doy, year_end, doy_end, numproc)
+    d, numproc = make_parallel_proc_lists_mjd(year, doy, year_end, doy_end, numproc)
     
     # Create list of (year, doy, args, error_queue) for each day to process
     day_list = []

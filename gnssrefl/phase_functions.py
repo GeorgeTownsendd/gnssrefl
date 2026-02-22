@@ -7,9 +7,8 @@ import sys
 
 
 import gnssrefl.gps as g
-from gnssrefl.utils import FileManagement, FileTypes, check_arc_quality, format_qc_summary, rewrite_azel, circular_distance_deg
+from gnssrefl.utils import FileManagement, FileTypes, check_arc_quality, format_qc_summary, rewrite_azel, circular_distance_deg, read_json_file
 import gnssrefl.daily_avg_cl as da
-import gnssrefl.gnssir_functions as gnssir
 from gnssrefl.extract_arcs import extract_arcs_from_file, extract_arcs_from_station, move_arc_to_failqc
 from functools import partial
 from scipy import optimize
@@ -683,7 +682,7 @@ def get_vwc_frequency(station: str, extension: str, fr_cmd: str = None):
             sys.exit()
     else:
         # Otherwise, try to read from the json file
-        lsp = gnssir.read_json_file(station, extension, noexit=True)
+        lsp = read_json_file(station, extension, noexit=True)
         if 'freqs' in lsp and lsp.get('freqs'):
             if len(lsp['freqs']) == 1:
                 final_fr = lsp['freqs'][0]
@@ -1768,9 +1767,9 @@ def set_parameters(station, level_doys,minvalperday,tmin,tmax,min_req_pts_track,
     g.checkFiles(station, '')
     # should not crash if file does not exist...
     if extension is None:
-        lsp = gnssir.read_json_file(station, '',noexit=True, silent=True)
+        lsp = read_json_file(station, '',noexit=True, silent=True)
     else:
-        lsp = gnssir.read_json_file(station, extension,noexit=True, silent=True)
+        lsp = read_json_file(station, extension,noexit=True, silent=True)
 
     if not lsp:
         print(f'No json input file found for {station}. Please create one with gnssir_input.')
