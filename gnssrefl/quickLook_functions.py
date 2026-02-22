@@ -12,7 +12,6 @@ import scipy.signal
 
 import gnssrefl.gps as g
 import gnssrefl.refraction as refr
-import gnssrefl.rinex2snr as rinex
 import gnssrefl.read_snr_files as snr
 from gnssrefl.extract_arcs import extract_arcs
 
