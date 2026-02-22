@@ -139,8 +139,6 @@ def quickphase(station: str, year: int, doy: int, year_end: int = None, doy_end:
     if exitS:
         sys.exit()
 
-    g.result_directories(station, year, '')
-
     # Read station json and apply CLI overrides (same pattern as gnssir_cl.py)
     lsp = guts2.read_json_file(station, extension)
     if e1 is not None:

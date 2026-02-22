@@ -8,7 +8,7 @@ import sys
 import gnssrefl.gnssir_v2 as guts
 import gnssrefl.gps as g
 from gnssrefl.extract_arcs import move_arc_to_failqc
-from gnssrefl.utils import check_arc_quality, format_qc_summary
+from gnssrefl.utils import FileManagement, check_arc_quality, format_qc_summary
 
 def retrieve_rh(station,year,doy,extension, lsp, arcs, screenstats, irefr,logid,logfilename,dbhz):
     """
@@ -199,15 +199,16 @@ def retrieve_rh(station,year,doy,extension, lsp, arcs, screenstats, irefr,logid,
             f = '%4.0f %3.0f %6.3f %3.0f %6.3f %6.2f %6.2f %6.2f %6.2f %4.0f  %3.0f  %2.0f %8.5f %6.2f %7.2f %12.6f %2.0f'
 
     # this is really just overwriting what I had before. However, This will be sorted.
-        testfile,fe = g.LSPresult_name(station,year,doy,extension)
+        testfile = FileManagement(station, 'gnssir_result', year, doy, extension=extension).get_file_path()
         print('Writing sorted LSP results to : ', testfile, '\n')
         np.savetxt(testfile, allL, fmt=f, delimiter=' ', newline='\n',header=head, comments='%')
     else:
         print('No good retrievals found so no LSP file should be created ')
-        lspname,orgexist = g.LSPresult_name(station,year,doy,extension)
+        lspname = FileManagement(station, 'gnssir_result', year, doy, extension=extension).get_file_path(ensure_directory=False)
+        orgexist = lspname.is_file()
         print(lspname,orgexist)
         if orgexist:
-            subprocess.call(['rm', '-f',lspname])
+            subprocess.call(['rm', '-f', str(lspname)])
 
     if qc_lines:
         print('\n'.join(qc_lines))

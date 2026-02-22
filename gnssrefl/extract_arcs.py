@@ -1,24 +1,23 @@
 """
 extract_arcs.py - Standalone module for extracting satellite arcs from SNR data.
 
-This module provides a clean API for detecting and extracting satellite arcs
-from Signal-to-Noise Ratio (SNR) data files. It refactors arc detection logic
-from gnssir_v2.py into reusable functions.
+This module provides an API for detecting and extracting satellite arcs from Signal-to-Noise Ratio (SNR) data files.
 
-An "arc" represents a continuous satellite pass (rising or setting) across the sky.
-Arcs are split when:
-1. Time gap > 600 seconds (10 minutes)
-2. Elevation angle direction reverses (rising <-> setting)
+A "pass" represents data from a continuous satellite pass (horizon to horizon) across the sky.
+
+A pass will contain two "arcs", which are determined by splitting the pass at the maximum elevation.
 """
 
 import glob
 import os
 import shutil
+import subprocess
 
 import numpy as np
 from typing import List, Tuple, Optional, Dict, Any, Union
 
 from gnssrefl.read_snr_files import read_snr
+from gnssrefl.utils import circular_mean_deg, circular_distance_deg
 from gnssrefl.utils import FileManagement
 
 # Constants
@@ -42,9 +41,9 @@ VWC_TRACK_COLUMNS = [
     'PhaseCorrected', 'VWC',
 ]
 
-# (snr_column, constellation_offset) -> user-facing freq code
+# (snr file column, constellation offset) -> user-facing freq code
 # Constellation offset derived from sat number: GPS=0, GLONASS=100, Galileo=200, Beidou=300
-_COL_CONST_TO_FREQ = {
+COL_CONST_TO_FREQ = {
     (6, 200): 206, (6, 300): 306,
     (7, 0): 1, (7, 100): 101, (7, 200): 201, (7, 300): 301,
     (8, 0): 20, (8, 100): 102, (8, 300): 302,
@@ -52,73 +51,8 @@ _COL_CONST_TO_FREQ = {
     (10, 200): 207, (10, 300): 307,
     (11, 200): 208, (11, 300): 308,
 }
-_SNR_COLUMNS = [6, 7, 8, 9, 10, 11]
+SNR_COLUMNS = [6, 7, 8, 9, 10, 11]
 
-
-def _circular_mean_deg(angles):
-    """Circular mean of angles in degrees, handling the 0/360 wrap correctly."""
-    rad = np.deg2rad(angles)
-    return np.rad2deg(np.arctan2(np.mean(np.sin(rad)), np.mean(np.cos(rad)))) % 360
-
-
-def _circular_distance_deg(a, b):
-    """Shortest angular distance between two azimuths in degrees.
-
-    Works with scalars and numpy arrays (via broadcasting).
-    """
-    d = np.abs(a - b) % 360
-    return np.minimum(d, 360 - d)
-
-
-def _find_azimuth_clusters(azimuths, gap_threshold=20):
-    """Discover azimuth clusters using gap-based splitting on the circle.
-
-    Sorts azimuths, finds the largest gap (natural break on the circle),
-    then splits at any gap exceeding the threshold. Handles 0/360 wrap.
-
-    Parameters
-    ----------
-    azimuths : array-like
-        Azimuth values in degrees
-    gap_threshold : float
-        Minimum gap in degrees to split clusters. Default 20.
-
-    Returns
-    -------
-    list of numpy arrays
-        Each array contains the azimuths belonging to one cluster.
-    """
-    az = np.sort(np.asarray(azimuths, dtype=float) % 360)
-    n = len(az)
-    if n == 0:
-        return []
-    if n == 1:
-        return [az]
-
-    # Compute gaps between consecutive sorted values (including wrap-around)
-    gaps = np.empty(n)
-    gaps[:-1] = np.diff(az)
-    gaps[-1] = (az[0] + 360) - az[-1]
-
-    # Reorder starting after the largest gap (natural circle break)
-    start = (np.argmax(gaps) + 1) % n
-    ordered_az = np.roll(az, -start)
-
-    # Compute gaps in the reordered sequence, handling wrap
-    ordered_gaps = np.diff(ordered_az)
-    ordered_gaps[ordered_gaps < 0] += 360
-
-    # Split at gaps exceeding threshold
-    clusters = []
-    current = [ordered_az[0]]
-    for i in range(1, n):
-        if ordered_gaps[i - 1] > gap_threshold:
-            clusters.append(np.array(current))
-            current = []
-        current.append(ordered_az[i])
-    clusters.append(np.array(current))
-
-    return clusters
 
 
 def _freq_for_column_and_sat(column, sat, l2c_sats=None, l5_sats=None):
@@ -130,39 +64,7 @@ def _freq_for_column_and_sat(column, sat, l2c_sats=None, l5_sats=None):
             return 20 if (l2c_sats is None or sat in l2c_sats) else 2
         if column == 9 and l5_sats is not None and sat not in l5_sats:
             return None
-    return _COL_CONST_TO_FREQ.get((column, offset))
-
-
-def _resolve_data_file(station, year, doy, data_type='results', extension=''):
-    """Resolve path to a gnssir data file (results or phase).
-
-    Parameters
-    ----------
-    station : str
-        Station name
-    year : int
-        Year
-    doy : int
-        Day of year
-    data_type : str
-        Type of data file: ``'results'`` or ``'phase'``.
-    extension : str
-        Optional subdirectory under the station folder
-
-    Returns
-    -------
-    str or None
-        Path if file exists, None otherwise
-    """
-    refl_code = os.environ.get('REFL_CODE', '')
-    if not refl_code:
-        return None
-    parts = [refl_code, str(year), data_type, station]
-    if extension:
-        parts.append(extension)
-    parts.append(f'{doy:03d}.txt')
-    path = os.path.join(*parts)
-    return path if os.path.isfile(path) else None
+    return COL_CONST_TO_FREQ.get((column, offset))
 
 
 def _load_result_file(path):
@@ -428,7 +330,7 @@ def attach_vwc_track_results(
             continue
 
         # Closest azimuth within tolerance
-        az_dists = np.array([_circular_distance_deg(metadata['az_min_ele'], az) for az, _ in candidates])
+        az_dists = np.array([circular_distance_deg(metadata['az_min_ele'], az) for az, _ in candidates])
         best_i = int(np.argmin(az_dists))
         if az_dists[best_i] > az_tolerance:
             continue
@@ -641,6 +543,33 @@ def move_arc_to_failqc(meta, station, year, doy, extension=''):
     shutil.move(fname, dest)
 
 
+def apply_refraction(snr_array, lsp, year, doy):
+    """Apply refraction correction to SNR elevation angles.
+
+    Parameters
+    ----------
+    snr_array : np.ndarray
+        SNR data array with elevation angles in column 1.
+    lsp : dict
+        Station analysis parameters containing refraction model config.
+    year : int
+        Full year.
+    doy : int
+        Day of year.
+
+    Returns
+    -------
+    np.ndarray
+        Copy of *snr_array* with corrected elevations; rows where the
+        correction is invalid are removed.
+    """
+    from gnssrefl.refraction import correct_elevations
+    corrected, valid_mask = correct_elevations(snr_array[:, 1], lsp, year, doy)
+    snr_array = snr_array.copy()
+    snr_array[:, 1] = corrected
+    return snr_array[valid_mask]
+
+
 def extract_arcs_from_station(
     station: str,
     year: int,
@@ -727,20 +656,15 @@ def extract_arcs_from_station(
         raise RuntimeError(f"read_snr failed for: {obsfile}")
 
     if gzip and os.path.isfile(obsfile):
-        import subprocess
         subprocess.call(['gzip', '-f', obsfile])
 
-    # Apply refraction correction if lsp is provided with refraction enabled
+    # Apply refraction correction
     if lsp is not None and lsp.get('refraction', False):
-        from gnssrefl.refraction import correct_elevations
-        corrected, valid_mask = correct_elevations(snr_array[:, 1], lsp, year, doy)
-        snr_array = snr_array.copy()
-        snr_array[:, 1] = corrected
-        snr_array = snr_array[valid_mask]
+        snr_array = apply_refraction(snr_array, lsp, year, doy)
 
     arcs = extract_arcs(snr_array, freq=freq, year=year, doy=doy, **kwargs)
 
-    # Save individual arc files to disk (before attach_results, before return)
+    # Save individual arc files to disk
     if lsp is not None and lsp.get('savearcs', False):
         nooverwrite = lsp.get('nooverwrite', False)
         savearcs_format = lsp.get('savearcs_format', 'txt')
@@ -750,28 +674,25 @@ def extract_arcs_from_station(
             save_arc(meta, data, sdir, station, year, doy, savearcs_format)
 
     if attach_results and extension:
-        refl_code = os.environ.get('REFL_CODE', '')
-        if refl_code:
-            res_dir = os.path.join(refl_code, str(year), 'results', station, extension)
-            phase_dir = os.path.join(refl_code, str(year), 'phase', station, extension)
-            if not os.path.isdir(res_dir) and not os.path.isdir(phase_dir):
-                raise FileNotFoundError(
-                    f"Extension directory '{extension}' not found under "
-                    f"{os.path.join(refl_code, str(year), 'results', station)} or "
-                    f"{os.path.join(refl_code, str(year), 'phase', station)}"
-                )
+        result_dir = FileManagement(station, 'gnssir_result', year, doy, extension=extension).get_file_path(ensure_directory=False).parent
+        phase_dir = FileManagement(station, 'phase_file', year, doy, extension=extension).get_file_path(ensure_directory=False).parent
+        if not result_dir.is_dir() and not phase_dir.is_dir():
+            raise FileNotFoundError(
+                f"Extension directory '{extension}' not found under "
+                f"{result_dir.parent} or {phase_dir.parent}"
+            )
 
     if attach_results:
-        result_path = _resolve_data_file(station, year, doy, 'results', extension)
-        if result_path is not None:
-            attach_gnssir_processing_results(arcs, result_path)
+        result_path = FileManagement(station, 'gnssir_result', year, doy, extension=extension).get_file_path(ensure_directory=False)
+        if result_path.is_file():
+            attach_gnssir_processing_results(arcs, str(result_path))
         else:
             for metadata, _data in arcs:
                 metadata['gnssir_processing_results'] = None
 
-        phase_path = _resolve_data_file(station, year, doy, 'phase', extension)
-        if phase_path is not None:
-            attach_phase_processing_results(arcs, phase_path)
+        phase_path = FileManagement(station, 'phase_file', year, doy, extension=extension).get_file_path(ensure_directory=False)
+        if phase_path.is_file():
+            attach_phase_processing_results(arcs, str(phase_path))
         else:
             for metadata, _data in arcs:
                 metadata['phase_processing_results'] = None
@@ -833,7 +754,6 @@ def extract_arcs_from_file(
         raise RuntimeError(f"read_snr failed for: {obsfile}")
 
     if gzip and os.path.isfile(obsfile):
-        import subprocess
         subprocess.call(['gzip', '-f', obsfile])
 
     return extract_arcs(snr_array, freq=freq, **kwargs)
@@ -946,7 +866,7 @@ def extract_arcs(
         # Explicit freqs: record freq and target constellation per column
         explicit = {_get_snr_column(f): (f, (f // 100) * 100) for f in freq_list}
     else:
-        column_list = [c for c in _SNR_COLUMNS if c <= ncols]
+        column_list = [c for c in SNR_COLUMNS if c <= ncols]
         explicit = None
 
     # L2C/L5 satellite sets for GPS freq assignment
@@ -1072,7 +992,7 @@ def extract_arcs(
 
                         # Check azimuth compliance using circular mean of filtered arc
                         filtered_azi = arc_azi[e_mask]
-                        arc_azim = _circular_mean_deg(filtered_azi)
+                        arc_azim = circular_mean_deg(filtered_azi)
 
                         if not _check_azimuth_compliance(arc_azim, azlist):
                             if screenstats:
@@ -1433,7 +1353,7 @@ def _compute_arc_metadata(
         'ele_start': float(np.min(ele)),
         'ele_end': float(np.max(ele)),
         'az_min_ele': float(init_azim),
-        'az_avg': float(_circular_mean_deg(azi)),
+        'az_avg': float(circular_mean_deg(azi)),
         'time_start': float(np.min(seconds)),
         'time_end': float(np.max(seconds)),
         'arc_timestamp': float(np.mean(seconds) / 3600),  # hours UTC

@@ -10,7 +10,8 @@ import gnssrefl.gps as g
 from gnssrefl.utils import FileManagement, FileTypes, check_arc_quality, format_qc_summary
 import gnssrefl.daily_avg_cl as da
 import gnssrefl.gnssir_v2 as gnssir
-from gnssrefl.extract_arcs import extract_arcs_from_file, extract_arcs_from_station, _circular_distance_deg, move_arc_to_failqc
+from gnssrefl.extract_arcs import extract_arcs_from_file, extract_arcs_from_station, move_arc_to_failqc
+from gnssrefl.utils import circular_distance_deg
 from functools import partial
 from scipy import optimize
 from scipy.interpolate import interp1d
@@ -816,7 +817,7 @@ def phase_tracks(station, year, doy, snr_type, fr_list, lsp, extension=''):
                         # Match arc to apriori track by satellite and circular distance to track avg azimuth
                         matching_track = None
                         for track in apriori_tracks:
-                            if track['sat'] == sat_number and _circular_distance_deg(az_min_ele, track['track_azim']) <= 3:
+                            if track['sat'] == sat_number and circular_distance_deg(az_min_ele, track['track_azim']) <= 3:
                                 matching_track = track
                                 break
 

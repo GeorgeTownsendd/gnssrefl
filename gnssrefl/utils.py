@@ -9,6 +9,21 @@ from typing import get_type_hints
 from pathlib import Path
 
 
+def circular_mean_deg(angles):
+    """Circular mean of angles in degrees, handling the 0/360 wrap correctly."""
+    rad = np.deg2rad(angles)
+    return np.rad2deg(np.arctan2(np.mean(np.sin(rad)), np.mean(np.cos(rad)))) % 360
+
+
+def circular_distance_deg(a, b):
+    """Shortest angular distance between two azimuths in degrees.
+
+    Works with scalars and numpy arrays (via broadcasting).
+    """
+    d = np.abs(a - b) % 360
+    return np.minimum(d, 360 - d)
+
+
 def validate_input_datatypes(obj, **kwargs):
     hints = get_type_hints(obj)
 
@@ -53,6 +68,7 @@ class FileTypes(str, Enum):
     apriori_rh_file = "apriori_rh_file"
     daily_avg_phase_results = "daily_avg_phase_results"
     make_json = "make_json"
+    gnssir_result = "gnssir_result"
     phase_file = "phase_file"
     volumetric_water_content = "volumetric_water_content"
     arcs_directory = "arcs_directory"
@@ -121,6 +137,11 @@ class FileManagement:
                 if self.extension:
                     phase_path = phase_path / self.extension
                 files[FileTypes.phase_file] = phase_path / f'{self.doy:03d}.txt'
+
+                result_path = self.xdir / str(self.year) / 'results' / str(self.station)
+                if self.extension:
+                    result_path = result_path / self.extension
+                files[FileTypes.gnssir_result] = result_path / f'{self.doy:03d}.txt'
 
             file_path = files[self.file_type]
             

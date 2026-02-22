@@ -238,13 +238,6 @@ def gnssir(station: str, year: int, doy: int, snr: int = 66, plt: bool = False, 
     if exitS:
         sys.exit()
 
-    # check this now before spawning multi-processor jobs
-    if year_end is None:
-        g.result_directories(station,year,extension)
-    else:
-        for y in range(year, year_end+1):
-            g.result_directories(station,y,extension)
-
     lsp = guts2.read_json_file(station, extension)
     # 
     if 'snr' in lsp:

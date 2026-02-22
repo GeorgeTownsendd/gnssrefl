@@ -172,9 +172,9 @@ def gnssir_guts_v2(station,year,doy, snr_type, extension,lsp, debug):
         print('Using decimation value: ', dec)
 
     ann = g.make_nav_dirs(year) # make sure directories are there for orbits
-    g.result_directories(station,year,extension) # make directories for the LSP results
 
-    fname, resultExist = g.LSPresult_name(station,year,doy,extension)
+    fname = FileManagement(station, 'gnssir_result', year, doy, extension=extension).get_file_path()
+    resultExist = fname.is_file()
     if screenstats:
         logid, logfilename = open_gnssir_logfile(station,year,doy,extension)
     else:

@@ -12,7 +12,7 @@ from gnssrefl.utils import read_files_in_dir, FileTypes, FileManagement
 import gnssrefl.gnssir_v2 as guts2
 import gnssrefl.phase_functions as qp
 from gnssrefl.phase_functions import get_vwc_frequency
-from gnssrefl.extract_arcs import _circular_mean_deg, _circular_distance_deg, _find_azimuth_clusters
+from gnssrefl.utils import circular_mean_deg, circular_distance_deg
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -170,10 +170,10 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
         sat_azimuths = azimuth_gnssir_results[sat_mask]
         if len(sat_azimuths) == 0:
             continue
-        clusters = _find_azimuth_clusters(sat_azimuths)
+        clusters = define_track_clusters(sat_azimuths)
         for cluster in clusters:
-            track_avg_az = _circular_mean_deg(cluster)
-            mask = sat_mask & (_circular_distance_deg(azimuth_gnssir_results, track_avg_az) <= 3)
+            track_avg_az = circular_mean_deg(cluster)
+            mask = sat_mask & (circular_distance_deg(azimuth_gnssir_results, track_avg_az) <= 3)
             reflector_heights = reflector_height_gnssir_results[mask]
             azimuths = azimuth_gnssir_results[mask]
             if len(reflector_heights) > min_tracks:
@@ -185,7 +185,7 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
                     continue
 
                 b = b + 1
-                average_azimuth = _circular_mean_deg(azimuths)
+                average_azimuth = circular_mean_deg(azimuths)
                 az_min = (average_azimuth - 3) % 360
                 az_max = (average_azimuth + 3) % 360
                 apriori_array.append([b, np.mean(reflector_heights), satellite, average_azimuth, len(reflector_heights), az_min, az_max])
@@ -228,6 +228,58 @@ def vwc_input(station: str, year: int, fr: str = None, min_tracks: int = 100, mi
 
     with open(json_path, 'w+') as outfile:
         json.dump(lsp, outfile, indent=4)
+
+def define_track_clusters(azimuths, gap_threshold=10):
+    """Define satellite track clusters from observed azimuths.
+
+    Groups azimuths into distinct tracks by sorting them on the circle,
+    finding the largest gap (natural break), then splitting at any gap
+    exceeding the threshold. Handles 0/360 wrap.
+
+    Parameters
+    ----------
+    azimuths : array-like
+        Observed azimuth values in degrees for a single satellite
+    gap_threshold : float
+        Minimum azimuth gap in degrees to split into separate tracks. Default 10.
+
+    Returns
+    -------
+    list of numpy arrays
+        Each array contains the azimuths belonging to one track.
+    """
+    az = np.sort(np.asarray(azimuths, dtype=float) % 360)
+    n = len(az)
+    if n == 0:
+        return []
+    if n == 1:
+        return [az]
+
+    # Compute gaps between consecutive sorted values (including wrap-around)
+    gaps = np.empty(n)
+    gaps[:-1] = np.diff(az)
+    gaps[-1] = (az[0] + 360) - az[-1]
+
+    # Reorder starting after the largest gap (natural circle break)
+    start = (np.argmax(gaps) + 1) % n
+    ordered_az = np.roll(az, -start)
+
+    # Compute gaps in the reordered sequence, handling wrap
+    ordered_gaps = np.diff(ordered_az)
+    ordered_gaps[ordered_gaps < 0] += 360
+
+    # Split at gaps exceeding threshold
+    clusters = []
+    current = [ordered_az[0]]
+    for i in range(1, n):
+        if ordered_gaps[i - 1] > gap_threshold:
+            clusters.append(np.array(current))
+            current = []
+        current.append(ordered_az[i])
+    clusters.append(np.array(current))
+
+    return clusters
+
 
 
 def main():

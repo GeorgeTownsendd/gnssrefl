@@ -15,8 +15,7 @@ import gnssrefl.gnssir_v2 as gnssir
 import gnssrefl.advanced_vegetation_correction as avc
 import gnssrefl.simple_vegetation_correction as svc
 
-from gnssrefl.utils import str2bool, read_files_in_dir, FileManagement
-from gnssrefl.extract_arcs import _circular_distance_deg
+from gnssrefl.utils import str2bool, read_files_in_dir, FileManagement, circular_distance_deg
 
 xdir = os.environ['REFL_CODE']
 
@@ -341,7 +340,7 @@ def vwc(station: str, year: int, year_end: int = None, fr: str = None, plt: bool
         display_quad = int(track_avg_az % 360 // 90)  # 0=NE, 1=SE, 2=SW, 3=NW
 
         # Match phase arcs to track by satellite + circular distance to avg azimuth
-        ii = (ssat == satellite) & (_circular_distance_deg(azdata, track_avg_az) <= 3) & (phase < 360)
+        ii = (ssat == satellite) & (circular_distance_deg(azdata, track_avg_az) <= 3) & (phase < 360)
         y,t,h,x,azd,s,amp_lsps,amp_lss,rhs,ap_rhs,mjds = \
                 qp.rename_vals(year_sat_phase, doy, hr, phase, azdata, ssat, amp_lsp, amp_ls, rh, ap_rh, ii)
         if screenstats:

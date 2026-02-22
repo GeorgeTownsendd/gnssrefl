@@ -2074,12 +2074,8 @@ def open_outputfile(station,year,doy,extension):
 #   extra file with rejected arcs
     w = logdir + '/reject.' + str(year) + '_' + cdoy  + station + '.txt'
 
-    filedir = xdir + '/' + str(year)  + '/results/' + station 
-#   changed to a function
-    filepath1,fexit = LSPresult_name(station,year,doy,extension)
-    #print('Output will go to:', filepath1)
+    filepath1 = u.FileManagement(station, 'gnssir_result', year, doy, extension=extension).get_file_path()
     versionNumber = 'v' + str(version('gnssrefl'))
-    #versionNumber = 'working-on-it'
     tem = '% station ' + station + ' https://github.com/kristinemlarson/gnssrefl ' + versionNumber  + '\n'
     try:
         fout=open(filepath1,'w+')
@@ -2090,19 +2086,8 @@ def open_outputfile(station,year,doy,extension):
         fout.write("% (1)  (2)   (3) (4)  (5)     (6)   (7)    (8)    (9)   (10)  (11) (12) (13)    (14)     (15)    (16)   (17)\n")
         fout.write("%             m        hrs    deg   v/v    deg    deg  values            hrs             min           0 is none \n")
     except:
-        print('problem on first attempt - so try making results directory')
-        f1 = xdir + '/' + str(year) + '/results/'
-        subprocess.call(['mkdir',f1])
-        # os.system(cm)
-        f2 = xdir + '/' + str(year) + '/results/' + station
-        subprocess.call(['mkdir',f2])
-        # os.system(cm)
-        try:
-            fout=open(filepath1,'w+')
-            print('successful open')
-        except:
-            print('problems opening the file')
-            sys.exit()
+        print('problems opening the file')
+        sys.exit()
     frej = 100
 
     return fout, frej
@@ -2987,104 +2972,6 @@ def llh2xyz(lat,lon,height):
         z= (r_n*(1 - NAV_E2) + height)*slat
 
     return x, y, z
-
-def LSPresult_name(station,year,doy,extension):
-    """
-    Makes filename for the Lomb Scargle output
-    if extension is not being used you should send it 
-    empty string ('')
-
-    Parameters
-    ----------
-    station : str
-        4 ch station name
-    year : int
-        full year
-    doy : int
-        day of year
-    extension : str
-        name of subdirectory for results
-
-    Returns
-    -------
-    filepath1 : str
-        where Lomb Scargle output goes
-    fileexists : bool
-        whether output already exists
-
-    """
-    # for testing
-    xdir = os.environ['REFL_CODE']
-    cyear = str(year)
-    cdoy = '{:03d}'.format(doy)
-    # this is default location where the results will go
-    filedir = xdir + '/' + cyear  + '/results/' + station
-    # this is now also done in the result_directories function,
-    # but I guess no harm is done
-    if not os.path.isdir(filedir):
-        #print('making new results bdirectory ')
-        subprocess.call(['mkdir', filedir])
-
-    if len(extension) > 0:
-        filedirx = filedir + '/' + extension
-    else:
-        filedirx = filedir
-
-    # this is what you do if there is an extension
-    if not os.path.isdir(filedirx):
-        subprocess.call(['mkdir', filedirx])
-
-    filepath1 =  filedirx + '/' + cdoy  + '.txt'
-
-    if os.path.isfile(filepath1):
-        fileexists = True
-    else:
-        fileexists = False
-
-    return filepath1, fileexists
-
-def result_directories(station,year,extension):
-    """
-    Creates directories for results
-
-    Parameters
-    ----------
-    station : str
-        4 ch station name
-    year : int
-        full year
-    extension : str
-        subdirectory for results (used for analysis strategy)
-
-    """
-    xdir = os.environ['REFL_CODE']
-    cyear = str(year)
-
-    f1 = xdir + '/' + cyear
-    if not os.path.isdir(f1):
-        subprocess.call(['mkdir',f1])
-
-    f1 = f1 + '/results'
-    if not os.path.isdir(f1):
-        subprocess.call(['mkdir',f1])
-
-
-    f1 = f1 + '/' + station
-    if not os.path.isdir(f1):
-        subprocess.call(['mkdir',f1])
-
-    if (extension != ''):
-        f1 = f1 + '/' + extension
-        if not os.path.isdir(f1):
-            subprocess.call(['mkdir',f1])
-
-    f1 = xdir + '/' + cyear + '/phase'
-    if not os.path.isdir(f1):
-        subprocess.call(['mkdir',f1])
-
-    f1 = f1 + '/' + station
-    if not os.path.isdir(f1):
-        subprocess.call(['mkdir',f1])
 
 def write_QC_fails(delT,delTmax,eminObs,emaxObs,e1,e2,ediff,maxAmp, Noise,PkNoise,reqamp,tooclose2edge,fileid):
     """
