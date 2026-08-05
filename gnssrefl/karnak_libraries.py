@@ -189,7 +189,7 @@ def universal(station9ch, year, doy, archive,srate,stream,debug=False):
         elif os.path.exists(zip_file_name):
             if debug:
                 print('From zip to gz: ', zip_file_name )
-            subprocess.call(['unzip', zip_file_name])
+            fileops.unzip(zip_file_name)
             fileops.gzip_file(file_name[0:-3])
             # cleaning up
             fileops.remove(zip_file_name)

@@ -136,9 +136,15 @@ def installexe(opsys: str):
     Parameters
     ----------
     opsys : str
-        operating system. Allowed values are linux64,  macos, and mac-newchip 
-        PC users should use the docker, where these executables 
+        operating system. Allowed values are linux64,  macos, and mac-newchip
+        PC users should use the docker, where these executables
         come pre-installed
+
+    Note that CRX2RNX no longer has to be installed by hand on any platform:
+    the hatanaka package is a dependency and puts a crx2rnx on the PATH, which
+    hatanaka_version() falls back to. This command is still how you get gfzrnx
+    and teqc, and how you put a CRX2RNX in $EXE if you would rather have one
+    there.
 
     """
 
@@ -149,10 +155,8 @@ def installexe(opsys: str):
     else:
         print('Your executable environment area: ', exedir)
 
-    checkexist('gzip')
-    checkexist('xz')
-    checkexist('unzip')
-    checkexist('compress')
+    # gzip, xz, compress and unzip used to be needed here. Compression is now
+    # done with the standard library and ncompress, so they no longer are.
     checkexist('wget')
 
     # where the executable files are (currently) stored publicly
@@ -180,7 +184,7 @@ def installexe(opsys: str):
             print('Downloading teqc from: ', url)
             try:
                 wget.download(url, savename + '.zip')
-                subprocess.call(['unzip', savename + '.zip' ])
+                fileops.unzip(savename + '.zip')
                 fileops.move(savename, exedir)
                 fileops.remove(savename + '.zip')
                 print('\n Executable stored:', savename)
@@ -201,7 +205,7 @@ def installexe(opsys: str):
             print('Downloading teqc from: ', url)
             try:
                 wget.download(url, savename + '.zip')
-                subprocess.call(['unzip', savename + '.zip' ])
+                fileops.unzip(savename + '.zip')
                 fileops.move(savename, exedir)
                 fileops.remove(savename + '.zip')
                 print('\n Executable stored:', savename)

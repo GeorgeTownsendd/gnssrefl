@@ -22,6 +22,7 @@ import io
 import lzma
 import os
 import shutil
+import zipfile
 
 # gzip raises BadGzipFile (an OSError) on a non-gzip file and EOFError on a
 # truncated one, lzma raises LZMAError, and ncompress raises ValueError on
@@ -146,6 +147,64 @@ def uncompress(filename):
         return False
 
     return _decompress(filename, '.Z', _open_z)
+
+
+def decompress(filename):
+    """
+    Decompress a file in place, picking the method from its extension.
+
+    For call sites that are handed either a .Z or a .gz depending on how old
+    the data is, and would otherwise have to keep track of which.
+
+    Parameters
+    ----------
+    filename : str
+        name of the compressed file
+
+    Returns
+    -------
+    bool
+        True on success
+    """
+    if filename.endswith('.gz'):
+        return gunzip(filename)
+    if filename.endswith('.xz'):
+        return unxz(filename)
+    if filename.endswith('.Z'):
+        return uncompress(filename)
+
+    print('Do not know how to decompress ' + filename)
+    return False
+
+
+def unzip(filename, destination='.'):
+    """
+    Extract a zip archive, as unzip does.
+
+    Unlike the decompression functions the archive is kept, again as unzip
+    does. Note that unzip extracts into the working directory, not next to the
+    archive, so that is the default here too.
+
+    Parameters
+    ----------
+    filename : str
+        name of the .zip file
+    destination : str, optional
+        directory to extract into, the working directory by default
+
+    Returns
+    -------
+    bool
+        True on success
+    """
+    try:
+        with zipfile.ZipFile(filename) as archive:
+            archive.extractall(destination)
+    except (OSError, zipfile.BadZipFile) as e:
+        print('Could not unzip ' + filename + ' : ' + str(e))
+        return False
+
+    return True
 
 
 def gzip_file(filename):

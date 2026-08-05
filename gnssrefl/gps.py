@@ -3571,22 +3571,54 @@ def ign_rinex3(station9ch, year, doy,srate):
     return fexist
 
 
+def find_executable(name, path_name):
+    """
+    Locates an external program, in $EXE, then the current directory, then the
+    PATH.
+
+    The first two keep the precedence they have always had. The PATH is a new
+    last resort, and is what finds crx2rnx on Windows, where nothing installs
+    one into $EXE. Windows candidates are also tried with a .exe suffix, since
+    shutil.which only applies PATHEXT to a bare name, not to one that already
+    carries a directory.
+
+    Parameters
+    ----------
+    name : str
+        filename as it appears in $EXE, e.g. CRX2RNX
+    path_name : str
+        name to look for on the PATH, e.g. crx2rnx
+
+    Returns
+    -------
+    str or None
+        location of the program, or None if it was not found anywhere
+
+    """
+    exedir = os.environ['EXE']
+    suffixes = ['', '.exe'] if os.name == 'nt' else ['']
+
+    # heroku version should be in the main area
+    for base in [os.path.join(exedir, name), os.path.join('.', name)]:
+        for suffix in suffixes:
+            if os.path.isfile(base + suffix):
+                return base + suffix
+
+    return shutil.which(path_name)
+
+
 def hatanaka_version():
     """
     Finds the Hatanaka decompression executable
 
     Returns
     -------
-    hatanakav : str 
+    hatanakav : str
         name/location of hatanaka executable
 
     """
-    exedir = os.environ['EXE']
-    hatanakav = exedir + '/CRX2RNX'
-    # heroku version should be in the main area
-    if not os.path.exists(hatanakav):
-        hatanakav = './CRX2RNX'
-    return hatanakav
+    # the hatanaka package installs a crx2rnx on the PATH
+    return find_executable('CRX2RNX', 'crx2rnx') or './CRX2RNX'
 
 def gfz_version():
     """
@@ -3598,12 +3630,7 @@ def gfz_version():
         name/location of gfzrnx executable
 
     """
-    exedir = os.environ['EXE']
-    gfzv = exedir + '/gfzrnx'
-    # heroku version should be in the main area
-    if not os.path.exists(gfzv):
-        gfzv = './gfzrnx'
-    return gfzv
+    return find_executable('gfzrnx', 'gfzrnx') or './gfzrnx'
 
 def teqc_version():
     """
@@ -3615,12 +3642,7 @@ def teqc_version():
         location of teqc executable
 
     """
-    exedir = os.environ['EXE']
-    gpse = exedir + '/teqc'
-    # heroku version should be in the main area
-    if not os.path.exists(gpse):
-        gpse = './teqc'
-    return gpse
+    return find_executable('teqc', 'teqc') or './teqc'
 
 def snr_exist(station,year,doy,snrEnd):
     """
@@ -4170,8 +4192,7 @@ def big_Disk_work_hard(station,year,month,day,delete_hourly):
 
     if delete_hourly:
         for i in range(0, len(alist)):
-            cm = ['rm', '-f',alist[i]]
-            subprocess.call(cm)
+            fileops.remove(alist[i])
 
     return rinexfile, foundit
 
@@ -6829,8 +6850,7 @@ def trignet(station,year,doy):
         fileops.remove('unpack.bat')
         fileops.remove('CRX2RNX.EXE')
         try:
-            archive = zipfile.ZipFile(the_zipfile, 'r')
-            subprocess.call(['unzip', the_zipfile])
+            fileops.unzip(the_zipfile)
             fileops.remove(station.upper() + cdoy + 'Z.' + cyy + 'q')
             fileops.remove(station.upper() + cdoy + 'Z.' + cyy + 'n')
             fileops.remove(station.upper() + cdoy + 'Z.zip')

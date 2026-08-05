@@ -2,6 +2,7 @@ import gzip
 import shutil
 import subprocess
 
+import ncompress
 import pytest
 
 from gnssrefl.rinex2snr import *
@@ -89,18 +90,65 @@ def test_identify_rinex_file(tmp_path, name, contents, expected):
     assert identify_rinex_file(str(obsfile)) == expected
 
 
+def test_identify_rinex_file_reads_a_dot_z_header(tmp_path):
+    """
+    A .Z file whose name gives nothing away has to be decompressed before it can
+    be identified. That used to stream through `uncompress -c`, which is not an
+    executable on Windows.
+    """
+    obsfile = tmp_path / 'name_that_helps_nobody.Z'
+    obsfile.write_bytes(ncompress.compress(HEADER3.encode()))
+
+    assert identify_rinex_file(str(obsfile)) == ('funn', 2022, 15, 3)
+
+
+def test_identify_rinex_file_corrupt_dot_z(tmp_path):
+    """a .Z file that is not really LZW is refused rather than raising"""
+    obsfile = tmp_path / 'name_that_helps_nobody.Z'
+    obsfile.write_bytes(b'this is not LZW compressed data')
+
+    assert identify_rinex_file(str(obsfile)) == (None, None, None, 0)
+
+
+def test_hatanaka_version_falls_back_to_the_path(tmp_path, monkeypatch):
+    """
+    $EXE keeps the precedence it has always had. crx2rnx on the PATH is a new
+    last resort, and is how this resolves on Windows, where nothing installs a
+    CRX2RNX into $EXE.
+    """
+    exedir = tmp_path / 'exe'
+    exedir.mkdir()
+    monkeypatch.setenv('EXE', str(exedir))
+    monkeypatch.chdir(tmp_path)
+
+    # nothing in $EXE, so the one the hatanaka package installed is found
+    from_path = hatanaka_version()
+    assert os.path.basename(from_path).lower().startswith('crx2rnx')
+    assert os.path.isfile(from_path)
+
+    # and $EXE still wins when it holds one
+    baked_in = exedir / ('CRX2RNX.exe' if os.name == 'nt' else 'CRX2RNX')
+    baked_in.write_bytes(b'placeholder')
+    baked_in.chmod(0o755)
+
+    assert os.path.samefile(hatanaka_version(), baked_in)
+
+
 @pytest.mark.parametrize("name, contents, kwarg, ending", [
     ('FUNN00XXX_R_20220150000_01D_30S_MO.rnx.gz', HEADER3, 'rinex3_filename', '.rnx'),
     ('funn0150.22o', HEADER2, 'rinex2_filename', '.22o'),
     ('FUNN00XXX_R_20220150000_01D_30S_MO.crx.gz', CRINEX, 'rinex3_filename', '.rnx'),
     ('data_from_the_receiver', CRINEX, 'rinex3_filename', '.rnx'),
     ('FUNN00XXX_R_20220150000_01D_30S_MO.crx', HEADER3, 'rinex3_filename', '.crx'),
+    ('funn0150.22o.Z', HEADER2, 'rinex2_filename', '.22o'),
 ])
 def test_translate_rinex_file(tmp_path, translated, name, contents, kwarg, ending):
     obsfile = tmp_path / name
     if name.endswith('.gz'):
         with gzip.open(obsfile, 'wt') as f:
             f.write(contents)
+    elif name.endswith('.Z'):
+        obsfile.write_bytes(ncompress.compress(contents.encode()))
     else:
         obsfile.write_text(contents)
 

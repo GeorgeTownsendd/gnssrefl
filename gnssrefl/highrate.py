@@ -72,7 +72,7 @@ def cddis_highrate(station, year, month, day,stream,dec_rate):
         for e in ['00', '15', '30', '45']:
             if version == 2:
                 oname = station + cdoy + alpha[h] + e + '.' + cyy + 'o'; 
-                file_name, crnx_name, file_name2, crnx_name2, exe1, exe2 = variableArchives(station,year,doy,cyyyy,cyy,cdoy,alpha[h],e) 
+                file_name, crnx_name, file_name2, crnx_name2 = variableArchives(station,year,doy,cyyyy,cyy,cdoy,alpha[h],e)
             else:
                 file_name = station.upper() + streamID + cyyyy + cdoy + ch + e + '_15M_01S_MO.crx.gz'
                 crnx_name = file_name[:-3] 
@@ -85,7 +85,7 @@ def cddis_highrate(station, year, month, day,stream,dec_rate):
                 fileF = fileF + 1
             elif os.path.isfile(file_name):
                 print('Found gzip/hatanaka file:', new_way_dir,file_name)
-                fileops.gunzip(file_name)
+                fileops.decompress(file_name)
                 subprocess.call([crnxpath, crnx_name])
                 fileops.remove(crnx_name)
                 fileF = fileF + 1
@@ -100,12 +100,12 @@ def cddis_highrate(station, year, month, day,stream,dec_rate):
                             fileops.remove(crnx_name)
                     if (version == 2):
                         if os.path.isfile(file_name):
-                            subprocess.call([exe1,file_name])
+                            fileops.decompress(file_name)
                             subprocess.call([crnxpath, crnx_name])
                             fileops.remove(crnx_name)
                         else:
                             g.cddis_download_2022B(file_name2,new_way_dir)
-                            subprocess.call([exe2,file_name2])
+                            fileops.decompress(file_name2)
                             subprocess.call([crnxpath, crnx_name2])
                             fileops.remove(crnx_name2)
                 except:
@@ -180,11 +180,7 @@ def variableArchives(station,year,doy,cyyyy,cyy, cdoy,chh,cmm):
     file_name2 : str
         second filename to look for
     crnx_name2 : str
-        second hatanaka compressed name 
-    exe1 : str
-        uncompression executable to use for file_name
-    exe2 : str
-        uncompression executable to use for file_name2
+        second hatanaka compressed name
 
     """
 # Before being merged into tar files, all Unix compressed RINEX V2 data with file 
@@ -199,17 +195,15 @@ def variableArchives(station,year,doy,cyyyy,cyy, cdoy,chh,cmm):
         crnx_name = file_name[:-2]
         file_name2 = station + cdoy + chh + cmm + '.' + cyy + 'd.gz'
         crnx_name2 = file_name2[:-3]
-        exe1 = 'uncompress'
-        exe2 = 'gunzip'
     else:
         file_name = station + cdoy +  chh + cmm + '.' + cyy + 'd.gz'
         crnx_name = file_name[:-3]
         file_name2 = station + cdoy + chh + cmm + '.' + cyy + 'd.Z'
         crnx_name2 = file_name2[:-2]
-        exe2 = 'uncompress'
-        exe1 = 'gunzip'
 
-    return file_name, crnx_name, file_name2, crnx_name2, exe1, exe2
+    # which of the two is .Z and which is .gz no longer has to be tracked
+    # here: fileops.decompress works it out from the extension
+    return file_name, crnx_name, file_name2, crnx_name2
 
 def bkg_highrate(station, year, month, day,stream,dec_rate,bkg,**kwargs):
     """

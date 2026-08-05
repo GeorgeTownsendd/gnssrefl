@@ -6,7 +6,6 @@ import os
 import requests
 import sys
 import matplotlib.pyplot as plt
-import subprocess
 import urllib
 
 import gnssrefl.gps as g
@@ -65,7 +64,7 @@ def download_psmsl(station: str, output: str = None, plt: bool = False):
 
     try:
         urllib.request.urlretrieve(url, filename)
-        subprocess.call(['unzip', filename])
+        fileops.unzip(filename)
         fileops.remove(filename)
         # this should produce a csv file - cfilename
     except:

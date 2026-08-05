@@ -2,6 +2,7 @@ import datetime
 import gzip as gzip_mod
 import io
 import matplotlib.pyplot as plt
+import ncompress
 import numpy as np
 import os
 import re
@@ -1598,11 +1599,14 @@ def identify_rinex_file(input_file):
         return station, year, doy, version
 
     header = []
-    uncompressed = None
     try:
         if input_file.endswith('.Z'):
-            uncompressed = subprocess.Popen(['uncompress', '-c', input_file], stdout=subprocess.PIPE)
-            fid = io.TextIOWrapper(uncompressed.stdout, errors='ignore')
+            # ncompress has no streaming reader, so a .Z file is decompressed
+            # whole to read its header. That is affordable here because .Z has
+            # all but disappeared from the archives, and the caller that gets
+            # this far decompresses the file to disk immediately afterwards.
+            with open(input_file, 'rb') as f_in:
+                fid = io.TextIOWrapper(io.BytesIO(ncompress.decompress(f_in.read())), errors='ignore')
         elif input_file.endswith('.gz'):
             fid = gzip_mod.open(input_file, 'rt', errors='ignore')
         else:
@@ -1612,12 +1616,9 @@ def identify_rinex_file(input_file):
                 header.append(line)
                 if (line[60:80].strip() == 'END OF HEADER') or (len(header) > 2000):
                     break
-    except (OSError, EOFError):
+    except (OSError, EOFError, ValueError):
+        # ValueError is what ncompress raises on input that is not really LZW
         return station, year, doy, version
-    finally:
-        if uncompressed is not None:
-            uncompressed.terminate()
-            uncompressed.wait()
 
     month = 0
     day = 0
@@ -1723,12 +1724,14 @@ def translate_rinex_file(input_file, station, year, doy, isnr, orbtype, dec_rate
                 with open(obsfile, 'wb') as f_out:
                     f_out.write(rinex_data)
             elif input_file.endswith('.Z'):
-                shutil.copy(input_file, obsfile)
-                fileops.uncompress(obsfile)
                 obsfile = obsfile[0:-2]
+                with open(input_file, 'rb') as f_in:
+                    rinex_data = ncompress.decompress(f_in.read())
+                with open(obsfile, 'wb') as f_out:
+                    f_out.write(rinex_data)
             else:
                 shutil.copy(input_file, obsfile)
-        except (OSError, EOFError) as error:
+        except (OSError, EOFError, ValueError) as error:
             print('ERROR: I was not able to decompress your input file: ', input_file)
             print(error)
             log.write('Decompression of {0:s} failed \n'.format(input_file))

@@ -12,6 +12,7 @@ import lzma
 import os
 import shutil
 import string
+import zipfile
 from pathlib import Path
 
 import ncompress
@@ -105,6 +106,58 @@ def test_decompress_missing_input(tmp_path, suffix, func):
     assert func(str(tmp_path / ('missing.o' + suffix))) is False
 
     assert not (tmp_path / 'missing.o').exists()
+
+
+@pytest.mark.parametrize('suffix, compress', [
+    ('.gz', gzip.compress),
+    ('.xz', lzma.compress),
+    ('.Z', ncompress.compress),
+])
+def test_decompress_picks_the_method_from_the_extension(tmp_path, suffix, compress):
+    """the dispatching form handles every format the explicit ones do"""
+    compressed = tmp_path / ('rinexfile.o' + suffix)
+    compressed.write_bytes(compress(PAYLOAD))
+
+    assert fileops.decompress(str(compressed)) is True
+
+    assert (tmp_path / 'rinexfile.o').read_bytes() == PAYLOAD
+    assert not compressed.exists()
+
+
+def test_decompress_unknown_extension(tmp_path):
+    """an extension it does not recognise is refused rather than guessed at"""
+    plain = tmp_path / 'rinexfile.o'
+    plain.write_bytes(PAYLOAD)
+
+    assert fileops.decompress(str(plain)) is False
+
+    assert plain.read_bytes() == PAYLOAD
+
+
+def test_unzip(tmp_path, monkeypatch):
+    """the archive is extracted into the working directory and kept, as unzip does"""
+    archive = tmp_path / 'teqc.zip'
+    with zipfile.ZipFile(archive, 'w') as z:
+        z.writestr('teqc', PAYLOAD)
+        z.writestr('notes.txt', 'read me')
+
+    workdir = tmp_path / 'work'
+    workdir.mkdir()
+    monkeypatch.chdir(workdir)
+
+    assert fileops.unzip(str(archive)) is True
+
+    assert (workdir / 'teqc').read_bytes() == PAYLOAD
+    assert (workdir / 'notes.txt').read_text() == 'read me'
+    assert archive.exists()
+
+
+def test_unzip_corrupt(tmp_path):
+    """something that is not a zip is refused without raising"""
+    archive = tmp_path / 'teqc.zip'
+    archive.write_bytes(b'this is not a zip archive')
+
+    assert fileops.unzip(str(archive), str(tmp_path)) is False
 
 
 # compression
