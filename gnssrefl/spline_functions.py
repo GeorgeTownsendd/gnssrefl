@@ -1200,7 +1200,7 @@ def arc_plots(lspfigs, snrfigs, reflh,pgram,sat,datet,elvlims,elvt,snrdt,azdesc,
     """
     if not os.path.isdir('plots'):
         print('make output directory for plots')
-        subprocess.call(['mkdir','plots'])
+        os.makedirs('plots', exist_ok=True)
 
     resol = 150
     nm = 'sat' + str(int(sat)) + '_' + xsignal + '_' + gps2datetime(np.mean(datet)).strftime('%H-%M')  

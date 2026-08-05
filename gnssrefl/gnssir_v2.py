@@ -6,7 +6,6 @@ import numpy as np
 import os
 import scipy.interpolate
 import scipy.signal
-import subprocess
 import sys
 import time
 import warnings
@@ -884,8 +883,7 @@ def open_gnssir_logfile(station,year,doy,extension):
     else:
         logdir = xdir + '/logs/' + station + '/' + extension + '/' + str(year) + '/'
 
-    if not os.path.isdir(logdir):
-        subprocess.call(['mkdir', '-p',logdir])
+    os.makedirs(logdir, exist_ok=True)
     fout = 0
     cdoy = '{:03d}'.format(doy)
 #   extra file with rejected arcs

@@ -45,8 +45,7 @@ def download_unr(station: str):
     # file will be stored in this directory
     xdir = os.environ['REFL_CODE']
     outdir = xdir  + '/Files/'
-    if not os.path.exists(outdir) :
-        subprocess.call(['mkdir', outdir])
+    os.makedirs(outdir, exist_ok=True)
 
     g.check_environ_variables()
 

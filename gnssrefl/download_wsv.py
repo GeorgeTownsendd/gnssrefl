@@ -3,7 +3,6 @@ import argparse
 import datetime
 import os
 import requests
-import subprocess
 import sys
 import gnssrefl.gps as g
 
@@ -49,7 +48,7 @@ def download_wsv(station: str, plt: bool = True, output: str = None):
     outputdir = xdir + '/Files'  
     if not os.path.isdir(outputdir):
         print('making ', outputdir)
-        subprocess.call(['mkdir',outputdir])
+        os.makedirs(outputdir, exist_ok=True)
 
     newurl = 'https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations/' + station + '/W/measurements.json?start=P30D'
 

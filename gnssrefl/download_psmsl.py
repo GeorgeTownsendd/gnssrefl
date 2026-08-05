@@ -37,8 +37,7 @@ def download_psmsl(station: str, output: str = None, plt: bool = False):
     g.check_environ_variables()
     xdir = os.environ['REFL_CODE']
     outdir = xdir  + '/Files/'
-    if not os.path.exists(outdir) :
-        subprocess.call(['mkdir', outdir])
+    os.makedirs(outdir, exist_ok=True)
 
 
     csv = False

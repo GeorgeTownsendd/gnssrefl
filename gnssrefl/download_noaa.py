@@ -55,16 +55,14 @@ def download_noaa(station: str, date1: str, date2: str, output: str = None, plt:
 
     xdir = os.environ['REFL_CODE']
     outdir = xdir  + '/Files/'
-    if not os.path.exists(outdir) :
-        subprocess.call(['mkdir', outdir])
+    os.makedirs(outdir, exist_ok=True)
 
     if (subdir is None):
         print('Using regular output directory',outdir )
     else:
         outdir = xdir  + '/Files/' + subdir + '/'
         print('User requested a subdirectory for output', outdir)
-        if not os.path.exists(outdir):
-            subprocess.call(['mkdir', outdir])
+        os.makedirs(outdir, exist_ok=True)
 
     if len(station) != 7:
         print('station must have 7 characters ', station); sys.exit()
@@ -436,8 +434,7 @@ def download_qld(station,year,plt):
 
     xdir = os.environ['REFL_CODE']
     outdir = xdir  + '/Files/'
-    if not os.path.exists(outdir) :
-        subprocess.call(['mkdir', outdir])
+    os.makedirs(outdir, exist_ok=True)
     outfile = outdir + station + '_' + str(year) + '.txt'
 
     fout = open(outfile, 'w+')

@@ -899,14 +899,11 @@ def quickname(station,year,cyy, cdoy, csnr):
     cyyyy = str(year)
     fname =  xdir + cyyyy + '/snr/' + station + '/' + station + cdoy + '0.' + cyy + '.snr' + csnr
     d = xdir + cyyyy
-    if not os.path.isdir(d):
-        subprocess.call(['mkdir', d])
+    os.makedirs(d, exist_ok=True)
     d = xdir + cyyyy + '/snr'
-    if not os.path.isdir(d):
-        subprocess.call(['mkdir', d])
+    os.makedirs(d, exist_ok=True)
     d = xdir + cyyyy + '/snr/' + station
-    if not os.path.isdir(d):
-        subprocess.call(['mkdir', d])
+    os.makedirs(d, exist_ok=True)
 
     return fname
 

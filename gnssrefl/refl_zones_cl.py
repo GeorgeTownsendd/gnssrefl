@@ -3,7 +3,6 @@
 import argparse
 import numpy as np
 import os
-import subprocess
 import sys
 
 import gnssrefl.gps as g
@@ -225,11 +224,9 @@ def reflzones(station: str, azim1: int=0, azim2: int=360, lat: float=None, lon: 
     # first check that the Files output directory exists
         xdir = os.environ['REFL_CODE']
         outputdir = xdir + '/Files' 
-        if not os.path.isdir(outputdir):
-            subprocess.call(['mkdir',outputdir])
+        os.makedirs(outputdir, exist_ok=True)
         outputdir = xdir + '/Files/kml'  
-        if not os.path.isdir(outputdir):
-            subprocess.call(['mkdir',outputdir])
+        os.makedirs(outputdir, exist_ok=True)
         output = outputdir  + '/' + station  + '.kml'
 
     # make the KML map file

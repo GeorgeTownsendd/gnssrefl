@@ -195,24 +195,19 @@ def check_directories(station,year):
 
     """
     navfiledir = os.environ['ORBITS']  + '/' + str(year)
-    if not os.path.isdir(navfiledir):
-        subprocess.call(['mkdir',navfiledir] )
+    os.makedirs(navfiledir, exist_ok=True)
 
     navfiledir = os.environ['ORBITS']  + '/' + str(year) + '/nav'
-    if not os.path.isdir(navfiledir):
-        subprocess.call(['mkdir',navfiledir] )
+    os.makedirs(navfiledir, exist_ok=True)
 
     foutdir =  os.environ['REFL_CODE'] + '/' + str(year) 
-    if not os.path.isdir(foutdir):
-        subprocess.call(['mkdir',foutdir] )
+    os.makedirs(foutdir, exist_ok=True)
 
     foutdir =  os.environ['REFL_CODE'] + '/' + str(year) + '/mp'
-    if not os.path.isdir(foutdir):
-        subprocess.call(['mkdir',foutdir] )
+    os.makedirs(foutdir, exist_ok=True)
 
     foutdir =  os.environ['REFL_CODE'] + '/' + str(year) + '/mp/' + station
-    if not os.path.isdir(foutdir):
-        subprocess.call(['mkdir',foutdir] )
+    os.makedirs(foutdir, exist_ok=True)
 
     return navfiledir, foutdir
 

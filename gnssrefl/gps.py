@@ -462,8 +462,7 @@ def getnavfile(year, month, day):
     month, day, doy, cyyyy, cyy, cdoy = ymd2ch(year,month,day)
     navname,navdir = nav_name(year, month, day)
     nfile = navdir + '/' + navname
-    if not os.path.exists(navdir):
-        subprocess.call(['mkdir',navdir])
+    os.makedirs(navdir, exist_ok=True)
 
     foundit = check_navexistence(year,month,day)
 
@@ -1825,8 +1824,7 @@ def open_outputfile(station,year,doy,extension):
     xdir = os.environ['REFL_CODE']
     logdir = xdir + '/logs'
 
-    if not os.path.isdir(logdir):
-        subprocess.call(['mkdir', logdir])
+    os.makedirs(logdir, exist_ok=True)
     fout = 0
 #   primary reflector height output goes to this directory
     cdoy = '{:03d}'.format(doy)
@@ -1851,10 +1849,10 @@ def open_outputfile(station,year,doy,extension):
     except:
         print('problem on first attempt - so try making results directory')
         f1 = xdir + '/' + str(year) + '/results/'
-        subprocess.call(['mkdir',f1])
+        os.makedirs(f1, exist_ok=True)
         # os.system(cm)
         f2 = xdir + '/' + str(year) + '/results/' + station
-        subprocess.call(['mkdir',f2])
+        os.makedirs(f2, exist_ok=True)
         # os.system(cm)
         try:
             fout=open(filepath1,'w+')
@@ -2787,7 +2785,7 @@ def LSPresult_name(station,year,doy,extension):
     # but I guess no harm is done
     if not os.path.isdir(filedir):
         #print('making new results bdirectory ')
-        subprocess.call(['mkdir', filedir])
+        os.makedirs(filedir, exist_ok=True)
 
     if len(extension) > 0:
         filedirx = filedir + '/' + extension
@@ -2795,8 +2793,7 @@ def LSPresult_name(station,year,doy,extension):
         filedirx = filedir
 
     # this is what you do if there is an extension
-    if not os.path.isdir(filedirx):
-        subprocess.call(['mkdir', filedirx])
+    os.makedirs(filedirx, exist_ok=True)
 
     filepath1 =  filedirx + '/' + cdoy  + '.txt'
 
@@ -2825,30 +2822,24 @@ def result_directories(station,year,extension):
     cyear = str(year)
 
     f1 = xdir + '/' + cyear
-    if not os.path.isdir(f1):
-        subprocess.call(['mkdir',f1])
+    os.makedirs(f1, exist_ok=True)
 
     f1 = f1 + '/results'
-    if not os.path.isdir(f1):
-        subprocess.call(['mkdir',f1])
+    os.makedirs(f1, exist_ok=True)
 
 
     f1 = f1 + '/' + station
-    if not os.path.isdir(f1):
-        subprocess.call(['mkdir',f1])
+    os.makedirs(f1, exist_ok=True)
 
     if (extension != ''):
         f1 = f1 + '/' + extension
-        if not os.path.isdir(f1):
-            subprocess.call(['mkdir',f1])
+        os.makedirs(f1, exist_ok=True)
 
     f1 = xdir + '/' + cyear + '/phase'
-    if not os.path.isdir(f1):
-        subprocess.call(['mkdir',f1])
+    os.makedirs(f1, exist_ok=True)
 
     f1 = f1 + '/' + station
-    if not os.path.isdir(f1):
-        subprocess.call(['mkdir',f1])
+    os.makedirs(f1, exist_ok=True)
 
 def write_QC_fails(delT,delTmax,eminObs,emaxObs,e1,e2,ediff,maxAmp, Noise,PkNoise,reqamp,tooclose2edge,fileid):
     """
@@ -5256,10 +5247,8 @@ def rinex_jp(station, year, month, day):
         return 
 
     # make sure the directory exists to store passwords
-    if not os.path.isdir(fdir + '/Files'):
-        subprocess.call(['mkdir',fdir + '/Files'])
-    if not os.path.isdir(fdir + '/Files/passwords'):
-        subprocess.call(['mkdir',fdir + '/Files/passwords'])
+    os.makedirs(fdir + '/Files', exist_ok=True)
+    os.makedirs(fdir + '/Files/passwords', exist_ok=True)
 
     userinfo_file = fdir + '/Files/passwords/' + 'userinfo.pickle'
     #userinfo.pickle stores your login info
@@ -5320,8 +5309,7 @@ def queryUNR_modern(station):
     not_in_database = False
     xdir = os.environ['REFL_CODE']
     fdir = xdir + '/Files'
-    if not os.path.isdir(fdir):
-        subprocess.call(['mkdir', fdir])
+    os.makedirs(fdir, exist_ok=True)
 
     # check local database file
     foundit, lat, lon, ht = query_coordinate_file(station)
@@ -5573,10 +5561,8 @@ def bfg_password(**kwargs):
         return
 
     # make sure the directory exists to store passwords
-    if not os.path.isdir(fdir + '/Files'):
-        subprocess.call(['mkdir',fdir + '/Files'])
-    if not os.path.isdir(fdir + '/Files/passwords'):
-        subprocess.call(['mkdir',fdir + '/Files/passwords'])
+    os.makedirs(fdir + '/Files', exist_ok=True)
+    os.makedirs(fdir + '/Files/passwords', exist_ok=True)
 
 
     userinfo_file = fdir + '/Files/passwords/' + archive + '.pickle'
@@ -5956,8 +5942,7 @@ def check_navexistence(year,month,day):
     foundit = False
     navname,navdir = nav_name(year, month, day)
     nfile = navdir + '/' + navname
-    if not os.path.exists(navdir):
-        subprocess.call(['mkdir',navdir])
+    os.makedirs(navdir, exist_ok=True)
 
     if os.path.exists(nfile):
         foundit = True
@@ -6161,8 +6146,7 @@ def set_subdir(subdir):
         sys.exit()
 
     outdir = xdir  + '/Files/' + subdir 
-    if not os.path.exists(outdir) :
-        subprocess.call(['mkdir', '-p', outdir])
+    os.makedirs(outdir, exist_ok=True)
 
     return
 
@@ -6313,10 +6297,8 @@ def cddis_password():
         return
 
     # make sure the directory exists to store passwords
-    if not os.path.isdir(fdir + '/Files'):
-        subprocess.call(['mkdir',fdir + '/Files'])
-    if not os.path.isdir(fdir + '/Files/passwords'):
-        subprocess.call(['mkdir',fdir + '/Files/passwords'])
+    os.makedirs(fdir + '/Files', exist_ok=True)
+    os.makedirs(fdir + '/Files/passwords', exist_ok=True)
 
     userinfo_file = fdir + '/Files/passwords/' + 'cddis.pickle'
     #print('user information file', userinfo_file)
@@ -6460,17 +6442,17 @@ def checkFiles(station, extension):
 
     txtdir = xdir + '/Files/' 
     if not os.path.exists(txtdir) :
-        subprocess.call(['mkdir', txtdir])
+        os.makedirs(txtdir, exist_ok=True)
         print(txtdir , ' has been created.')
     txtdir = xdir + '/Files/'  + station
     if not os.path.exists(txtdir) :
-        subprocess.call(['mkdir', txtdir])
+        os.makedirs(txtdir, exist_ok=True)
         print(txtdir , ' has been created.')
 
     if (len(extension) > 0):
         txtdir = xdir + '/Files/'  + station + '/' + extension
         if not os.path.exists(txtdir) :
-            subprocess.call(['mkdir', txtdir])
+            os.makedirs(txtdir, exist_ok=True)
             print(txtdir , ' has been created')
 
 
@@ -6501,13 +6483,11 @@ def read_leapsecond_file(mjd):
         sys.exit()
     # Fire currently loaded here
     xdir = os.environ['REFL_CODE'] + '/input'
-    if not os.path.isdir(xdir):
-         subprocess.call(['mkdir', xdir])
+    os.makedirs(xdir, exist_ok=True)
 
     # in case you decide to put it here
     xdir = os.environ['REFL_CODE'] + '/Files'
-    if not os.path.isdir(xdir):
-         subprocess.call(['mkdir', xdir])
+    os.makedirs(xdir, exist_ok=True)
 
     # I changed it to look for leap second file in Files
     xdir = os.environ['REFL_CODE'] + '/Files/leapseconds.txt' 

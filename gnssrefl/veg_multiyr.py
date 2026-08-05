@@ -11,7 +11,6 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import subprocess
 import sys
 import time
 import wget
@@ -78,14 +77,11 @@ def vegoutfile(station,year):
     returns name of the otuput file
     """
     vegdir = os.environ['REFL_CODE'] + '/Files'
-    if not os.path.isdir(vegdir):
-        subprocess.call(['mkdir',vegdir])
+    os.makedirs(vegdir, exist_ok=True)
     vegdir = vegdir + '/veg'
-    if not os.path.isdir(vegdir):
-        subprocess.call(['mkdir',vegdir])
+    os.makedirs(vegdir, exist_ok=True)
     vegdir = vegdir  + '/' + station
-    if not os.path.isdir(vegdir):
-        subprocess.call(['mkdir',vegdir])
+    os.makedirs(vegdir, exist_ok=True)
 
     vegout =  vegdir + '/' + station + '_' + str(year) + '_veg.txt'
     print(vegout)

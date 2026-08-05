@@ -3,7 +3,6 @@ import datetime
 import numpy as np
 import os
 import requests
-import subprocess
 import sys
 import gnssrefl.gps as g
 
@@ -66,8 +65,7 @@ def download_ioc(station: str, date1: str, date2: str, output: str = None, plt: 
         sys.exit()
 
     outdir = xdir  + '/Files/'
-    if not os.path.exists(outdir) :
-        subprocess.call(['mkdir', outdir])
+    os.makedirs(outdir, exist_ok=True)
 
     if subdir is None:
         #print('Using this output directory: ', outdir)
@@ -75,8 +73,7 @@ def download_ioc(station: str, date1: str, date2: str, output: str = None, plt: 
     else:
         outdir = xdir  + '/Files/' + subdir + '/'
         #print('Using this output directory: ', outdir)
-        if not os.path.exists(outdir) :
-            subprocess.call(['mkdir', outdir])
+        os.makedirs(outdir, exist_ok=True)
 
     csv = False
     if output is None:

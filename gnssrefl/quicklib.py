@@ -3,7 +3,6 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import subprocess
 import sys
 from astropy.time import Time
 
@@ -138,8 +137,7 @@ def save_plot(out):
     """
     # make sure output directory exists.
     xdir = os.environ['REFL_CODE']  + '/Files/' 
-    if not os.path.exists(xdir) :
-        subprocess.call(['mkdir', xdir])
+    os.makedirs(xdir, exist_ok=True)
 
     if out is None:
         out = 'temp.png'

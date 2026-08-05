@@ -505,12 +505,12 @@ def look_for_pickle_file():
         print('found ', inputdir)
     else:
         print('make directory: ', inputdir)
-        subprocess.call(['mkdir',inputdir])
+        os.makedirs(inputdir, exist_ok=True)
 
     fdir = xdir + '/Files'
     if not os.path.isdir(fdir):
         print('make Files directory: ', fdir)
-        subprocess.call(['mkdir', fdir])
+        os.makedirs(fdir, exist_ok=True)
 
     # where the file should be stored
     fullpname = inputdir + pfile

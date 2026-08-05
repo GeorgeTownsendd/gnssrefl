@@ -2,7 +2,6 @@ from scipy.interpolate import interp1d
 import math
 import numpy as np
 import os
-import subprocess
 import sys
 import time
 import wget
@@ -489,8 +488,7 @@ def set_system(system):
         print('REFL_CODE environment variable must be set. Exiting.')
         sys.exit()
     xdir = os.environ['REFL_CODE'] + '/Files/'
-    if not os.path.exists(xdir):
-        subprocess.call(['mkdir', xdir])
+    os.makedirs(xdir, exist_ok=True)
 
     if (system is None) or (system == 'gps'):
         system = 'gps'
@@ -531,8 +529,7 @@ def save_reflzone_orbits():
 
     xdir = os.environ['REFL_CODE'] + '/Files/'
 
-    if not os.path.exists(xdir):
-        subprocess.call(['mkdir', xdir])
+    os.makedirs(xdir, exist_ok=True)
 
     githubdir = 'https://raw.githubusercontent.com/kristinemlarson/gnssrefl/master/docs/_static/'
 

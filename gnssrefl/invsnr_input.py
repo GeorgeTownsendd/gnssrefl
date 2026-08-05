@@ -6,7 +6,6 @@
 import argparse
 import json
 import os
-import subprocess
 import sys
 
 # internal library of GPS functions
@@ -133,8 +132,7 @@ def invsnr_input(station: str, h1: float=1, h2: float=8, e1: float=5, e2: float=
         sys.exit()
     xdir = os.environ['REFL_CODE']
     outputdir  = xdir + '/input' 
-    if not os.path.isdir(outputdir):
-        subprocess.call(['mkdir', outputdir])
+    os.makedirs(outputdir, exist_ok=True)
 # 
     station_config['precision'] = 0.005 # precision of RH in meters
 # 

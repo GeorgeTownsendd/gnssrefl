@@ -1,7 +1,6 @@
 import argparse
 import json
 import os
-import subprocess
 import csv
 import sys
 from pathlib import Path
@@ -135,8 +134,7 @@ def make_meta(
     # meta json object path
     xdir = os.environ["REFL_CODE"]
     outputdir = xdir + "/input"
-    if not os.path.isdir(outputdir):
-        subprocess.call(["mkdir", outputdir])
+    os.makedirs(outputdir, exist_ok=True)
     outputfile = outputdir + "/" + station + "_meta.json"
 
     # If no overwrite and a file already exists, read in existing meta json

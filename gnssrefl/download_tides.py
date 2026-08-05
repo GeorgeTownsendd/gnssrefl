@@ -4,7 +4,6 @@ import datetime
 import wget
 import os
 import requests
-import subprocess
 import sys
 import gnssrefl.gps as g
 
@@ -93,8 +92,7 @@ def download_tides(station: str, network : str, date1: str = None, date2: str = 
 
     xdir = os.environ['REFL_CODE']
     outdir = xdir  + '/Files/'
-    if not os.path.exists(outdir) :
-        subprocess.call(['mkdir', outdir])
+    os.makedirs(outdir, exist_ok=True)
     if (network == 'noaa') or (network == 'ioc'):
         if (date1 is None):
             print('You need to enter a starting date YYYYMMDD') ; sys.exit()
