@@ -29,6 +29,8 @@ dependencies = [
     "earthscope-sdk<=0.2.1",
     "jupyterlab",
     "ipywidgets",
+    "hatanaka",
+    "ncompress",
 ]
 
 [tool.setuptools.packages.find]
