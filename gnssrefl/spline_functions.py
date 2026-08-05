@@ -11,7 +11,6 @@ from scipy.optimize import least_squares
 import scipy.signal as spectral
 
 from matplotlib.dates import (date2num, DateFormatter)
-import subprocess
 import sys
 import time
 
@@ -19,6 +18,7 @@ import time
 import gnssrefl.gps as g
 import gnssrefl.refraction as refr
 from gnssrefl.gnss_frequencies import get_wavelength, get_glonass_wavelength, signal_label_to_freq
+import gnssrefl.fileops as fileops
 
 
 def make_wavelength_column(nr,snrdata,signal):
@@ -84,7 +84,7 @@ def readklsnrtxt(snrfile, thedir, signal):
     """
     # do a straight load of the file
     snrall = loadsnrfile(snrfile, thedir)
-    subprocess.call(['gzip', thedir + snrfile])
+    fileops.gzip_file(thedir + snrfile)
 
     nr,nc = snrall.shape
     # this is for the frequency information
@@ -1160,12 +1160,12 @@ def define_inputfile(station,year,doy,snr_ending):
         elif os.path.isfile(gzfile):
             # unzip it, declare success
             #print('Found gzipped version', snrfile)
-            subprocess.call(['gunzip',gzfile])
+            fileops.gunzip(gzfile)
             snrdir = xdir
         elif os.path.isfile(xzfile):
             # unxz it, declare success
             #print('Found xz version', snrfile)
-            subprocess.call(['unxz',xzfile])
+            fileops.unxz(xzfile)
             snrdir = xdir
         else:
             print(snrfile, ' not found. Exiting')

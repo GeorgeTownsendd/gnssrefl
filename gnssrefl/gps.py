@@ -47,6 +47,7 @@ import gnssrefl.sd_libs as sd
 import gnssrefl.kelly as kelly
 import gnssrefl.utils as u
 from gnssrefl.gnss_frequencies import is_valid_frequency, get_scale_factor, get_display_label, CONSTELLATIONS
+import gnssrefl.fileops as fileops
 
 # for future ref
 #import urllib.request
@@ -520,7 +521,7 @@ def getsp3file(year,month,day):
         try:
             #wget.download(url,file1)
             cddis_download_2022B(sec_file, sec_dir) 
-            subprocess.call(['uncompress',file1])
+            fileops.uncompress(file1)
             store_orbitfile(name,year,'sp3') 
         except:
             print('some kind of problem -remove empty file')
@@ -570,7 +571,7 @@ def getsp3file_flex(year,month,day,pCtr):
     if (os.path.isfile(ofile ) == True):
         foundit = True
     elif (os.path.isfile(ofile + '.xz') == True):
-        subprocess.call(['unxz', ofile + '.xz'])
+        fileops.unxz(ofile + '.xz')
         foundit = True
     else:
         filename1 = '/gnss/products/' + str(gps_week) + '/' + file1
@@ -578,7 +579,7 @@ def getsp3file_flex(year,month,day,pCtr):
         url = cddis + filename1 
         try:
             cddis_download_2022B(sec_file, sec_dir) 
-            subprocess.call(['uncompress',file1])
+            fileops.uncompress(file1)
             store_orbitfile(name,year,'sp3') 
             foundit = True
         except:
@@ -666,7 +667,7 @@ def getsp3file_mgex(year,month,day,pCtr):
         if screenstats:
             print('xz first kind of MGEX sp3file already exists online-unxz it')
         fx =  fdir + '/' + name + '.xz'
-        subprocess.call(['unxz', fx])
+        fileops.unxz(fx)
         mgex = 1
         foundit = True
 
@@ -681,7 +682,7 @@ def getsp3file_mgex(year,month,day,pCtr):
             print('MGEX sp3file already exists online')
         mgex = 2 ; foundit = True
         fx =  fdir + '/' + name2 + '.xz'
-        subprocess.call(['unxz', fx])
+        fileops.unxz(fx)
 
     if (mgex == 2):
         name = name2
@@ -760,10 +761,10 @@ def orbfile_cddis(name, year, secure_file, secure_dir, file2):
         else:
             foundit = True
             if gzip:
-                subprocess.call(['gunzip', secure_file])
+                fileops.gunzip(secure_file)
                 store_orbitfile(name,year,'sp3') ; 
             else:
-                subprocess.call(['uncompress', secure_file])
+                fileops.uncompress(secure_file)
                 store_orbitfile(name,year,'sp3') ; 
 
     return foundit
@@ -2482,7 +2483,7 @@ def rinex_unavco_highrate(station, year, month, day):
             #wget.download(url2,filename2) old way
             foundit,file_name = kelly.the_kelly_simple_way(url2,filename2)
             if foundit:
-                subprocess.call(['uncompress',filename2])
+                fileops.uncompress(filename2)
                 subprocess.call([crnxpath, rinexfiled])
                 subprocess.call(['rm','-f',rinexfiled])
         except:
@@ -2494,7 +2495,7 @@ def rinex_unavco_highrate(station, year, month, day):
             #wget.download(url1,filename1) old way
             foundit,file_name = kelly.the_kelly_simple_way(url1,filename1)
             if foundit:
-                subprocess.call(['uncompress',filename1])
+                fileops.uncompress(filename1)
         except:
             okok = 1
     s2 = time.time()
@@ -3157,7 +3158,7 @@ def rinex_ga_highrate(station, year, month, day):
             #print(url)
             try:
                 wget.download(url,dname)
-                subprocess.call(['gunzip',dname])
+                fileops.gunzip(dname)
                 subprocess.call([crnxpath, dname1])
                 # delete the d file
                 subprocess.call(['rm',dname1])
@@ -3513,7 +3514,7 @@ def ign_orbits(filename, directory,year):
     try:
         wget.download(url,filename)
         if os.path.exists(filename):
-            subprocess.call(['gunzip',filename])
+            fileops.gunzip(filename)
             store_orbitfile(stripped_name,year,'sp3') ; 
             foundit = True
     except:
@@ -3557,7 +3558,7 @@ def ign_rinex3(station9ch, year, doy,srate):
     #print(url)
     try:
         wget.download(url,ff)
-        subprocess.call(['gunzip',ff])
+        fileops.gunzip(ff)
         subprocess.call([crnxpath,ff1])
         # get rid of compressed file
         subprocess.call(['rm','-f',ff1])
@@ -3656,7 +3657,7 @@ def snr_exist(station,year,doy,snrEnd):
         snre = True
     if os.path.isfile(fname2) and (not snre):
         snre = True # but needs to be uncompressed
-        subprocess.call(['unxz', fname2])
+        fileops.unxz(fname2)
     if os.path.isfile(fname3) and (not snre):
         snre = True # but needs to be ungzipped 
         #subprocess.call(['gunzip', fname3])
@@ -3695,7 +3696,7 @@ def get_sopac_navfile_cron(yyyy,doy):
 
     try:
         wget.download(url_sopac1,navfile_sopac1)
-        subprocess.call(['uncompress',navfile_sopac1])
+        fileops.uncompress(navfile_sopac1)
     except:
         okokok = 1
 
@@ -3740,7 +3741,7 @@ def get_sopac_navfile(navfile,cyyyy,cyy,cdoy):
 
     try:
         wget.download(url_sopac1,navfile_compressed)
-        subprocess.call(['uncompress',navfile_compressed])
+        fileops.uncompress(navfile_compressed)
     except:
         okokok = 1
 
@@ -3796,7 +3797,7 @@ def get_esa_navfile(cyyyy,cdoy):
     if (tday >= dday):
         try:
             wget.download(navfile_url,navfilegz)
-            subprocess.call(['gunzip',navfilegz])
+            fileops.gunzip(navfilegz)
         except:
             print('Did not find gzip version')
 
@@ -3805,7 +3806,7 @@ def get_esa_navfile(cyyyy,cdoy):
         navfile_url =  esa + navfileZ
         try:
             wget.download(navfile_url,navfileZ)
-            subprocess.call(['uncompress',navfileZ])
+            fileops.uncompress(navfileZ)
         except:
             okokok = 1
 
@@ -3861,7 +3862,7 @@ def get_cddis_navfile(navfile,cyyyy,cyy,cdoy):
             if (size == 0):
                 subprocess.call(['rm',cddisfile_compressed])
             else:
-                subprocess.call(['uncompress',cddisfile_compressed])
+                fileops.uncompress(cddisfile_compressed)
             foundit = True
 
     print('Try the gzipped version')
@@ -3875,7 +3876,7 @@ def get_cddis_navfile(navfile,cyyyy,cyy,cdoy):
             if (size == 0):
                 subprocess.call(['rm',cddisfile_gzip])
             else:
-                subprocess.call(['gunzip',cddisfile_gzip])
+                fileops.gunzip(cddisfile_gzip)
                 foundit = True
     
     if os.path.isfile(cddisfile):
@@ -4203,7 +4204,7 @@ def big_Disk_in_DC_hourly(station, year, month, day,idtag):
     print(url)
     try:
         wget.download(url, out=crinexfile)
-        status = subprocess.call(['gunzip', crinexfile])
+        fileops.gunzip(crinexfile)
     except:
         print('some problem in download - maybe the file does not exist on this archive')
 
@@ -4810,11 +4811,11 @@ def final_gfz_orbits(year,month,day):
 
     fullname = fdir + '/' + littlename + '.xz'
     if os.path.isfile(fullname):
-        subprocess.call(['unxz', fullname])
+        fileops.unxz(fullname)
 
     fullname = fdir + '/' + littlename + '.gz'
     if os.path.isfile(fullname):
-        subprocess.call(['gunzip', fullname])
+        fileops.gunzip(fullname)
 
     if os.path.isfile(fdir + '/' + littlename):
         #print(littlename, ' already exists on disk')
@@ -4822,7 +4823,7 @@ def final_gfz_orbits(year,month,day):
 
     try:
         wget.download(url,littlename + '.gz')
-        subprocess.call(['gunzip', littlename + '.gz'])
+        fileops.gunzip(littlename + '.gz')
     except:
         print('Problems downloading final multi-GNSS GFZ orbit from GFZ')
         print(url)
@@ -4881,13 +4882,13 @@ def rapid_gfz_orbits(year,month,day):
         if os.path.isfile(fullname):
             foundit = True
         elif os.path.isfile(fullname + '.gz'):
-            subprocess.call(['gunzip', fullname + '.gz'])
+            fileops.gunzip(fullname + '.gz')
             foundit = True
         else:
             try:
                 wget.download(url2, longname + '.gz')
                 if os.path.isfile(longname + '.gz'):
-                    subprocess.call(['gunzip', longname + '.gz'])
+                    fileops.gunzip(longname + '.gz')
                     store_orbitfile(longname,year,'sp3') ; 
                 foundit = True
             except:
@@ -4901,16 +4902,16 @@ def rapid_gfz_orbits(year,month,day):
         if os.path.isfile(fullname):
             foundit = True
         elif os.path.isfile(fullname + '.xz'):
-            subprocess.call(['unxz', fullname + '.xz'])
+            fileops.unxz(fullname + '.xz')
             foundit = True
         elif os.path.isfile(fullname + '.gz'):
-            subprocess.call(['gunzip', fullname + '.gz'])
+            fileops.gunzip(fullname + '.gz')
             foundit = True
         else:
             try:
                 wget.download(url,littlename + '.gz')
                 if os.path.isfile(littlename + '.gz'):
-                    subprocess.call(['gunzip', littlename + '.gz'])
+                    fileops.gunzip(littlename + '.gz')
                     foundit = True
             except:
                 print('Problems downloading Rapid GFZ orbit (1),url')
@@ -4985,12 +4986,12 @@ def ultra_gfz_orbits(year,month,day,hour):
     # check to see if the file is there already
     fullname = fdir + '/' + littlename + '.xz'
     if os.path.isfile(fullname):
-        subprocess.call(['unxz', fullname])
+        fileops.unxz(fullname)
 
     # check to see if the file is there already
     fullname = fdir + '/' + littlename + '.gz'
     if os.path.isfile(fullname):
-        subprocess.call(['gunzip', fullname])
+        fileops.gunzip(fullname)
 
     if os.path.isfile(fdir + '/' + littlename):
         #print(littlename, ' already exists on disk')
@@ -4998,7 +4999,7 @@ def ultra_gfz_orbits(year,month,day,hour):
 
     try:
         wget.download(url,littlename + '.gz')
-        subprocess.call(['gunzip', littlename + '.gz'])
+        fileops.gunzip(littlename + '.gz')
     except:
         print('Problems downloading ultrarapid GFZ orbit')
         print(url)
@@ -5006,7 +5007,7 @@ def ultra_gfz_orbits(year,month,day,hour):
         url = gns + 'w' + str(wk) + '/' + littlename + '.gz'
         print('now try the day before ', url)
         wget.download(url,littlename + '.gz')
-        subprocess.call(['gunzip', littlename + '.gz'])
+        fileops.gunzip(littlename + '.gz')
 
     if os.path.isfile(littlename):
         store_orbitfile(littlename,year,'sp3') ; foundit = True
@@ -5071,7 +5072,7 @@ def get_wuhan_orbits(year: int, month: int, day: int, hour: int) -> [str, str, b
     if not os.path.isfile(f'{orbit_dir}/{unzipped_filename}'):
         try:
             wget.download(f'{url_base}{filename}', filename)
-            subprocess.call(['gunzip', filename])
+            fileops.gunzip(filename)
         except:
             print('Problems downloading ultra-rapid Wuhan orbit')
             print(f'{url_base}{filename}')
@@ -5121,7 +5122,7 @@ def rinex_unavco(station, year, month, day):
 
     try:
         wget.download(url1,filename1)
-        status = subprocess.call(['uncompress', filename1])
+        fileops.uncompress(filename1)
     except:
         okokok =1
 
@@ -5129,7 +5130,7 @@ def rinex_unavco(station, year, month, day):
         if os.path.exists(crnxpath):
             try:
                 wget.download(url2,filename2)
-                status = subprocess.call(['uncompress', filename2])
+                fileops.uncompress(filename2)
                 status = subprocess.call([crnxpath, rinexfiled])
                 status = subprocess.call(['rm', '-f', rinexfiled])
             except:
@@ -5178,7 +5179,7 @@ def avoid_cddis(year,month,day):
         foundit = True
         return filename, fdir, foundit
     if os.path.isfile(fdir + filename + '.xz'):
-        subprocess.call(['unxz',fdir + filename + '.xz'])
+        fileops.unxz(fdir + filename + '.xz')
         #print(filename, ' orbit file already exists on disk'); 
         foundit = True
         return filename, fdir, foundit
@@ -5188,7 +5189,7 @@ def avoid_cddis(year,month,day):
         url = 'ftp://igs.ensg.ign.fr/pub/igs/products/mgex/' + cwk +  '/' + filenameZ
         try:
             wget.download(url,filenameZ)
-            subprocess.call(['uncompress',filenameZ])
+            fileops.uncompress(filenameZ)
             subprocess.call(['mv',filename, fdir])
             foundit = True
         except:
@@ -5202,7 +5203,7 @@ def avoid_cddis(year,month,day):
             foundit = True
             return filename, fdir, foundit
         if os.path.isfile(fdir + filename + '.xz'):
-            subprocess.call(['unxz',fdir + filename + '.xz'])
+            fileops.unxz(fdir + filename + '.xz')
             #print(filename, ' orbit file already exists on disk'); 
             foundit = True
             return filename, fdir, foundit
@@ -5211,7 +5212,7 @@ def avoid_cddis(year,month,day):
         try:
             wget.download(url, filenamegz)
             if os.path.exists(filenamegz):
-                subprocess.call(['gunzip',filenamegz])
+                fileops.gunzip(filenamegz)
                 subprocess.call(['mv',filename, fdir])
                 foundit=True
         except:
@@ -5278,7 +5279,7 @@ def rinex_jp(station, year, month, day):
     print('attempt to download RINEX file from Jp GeoNet')
     try:
         wget.download(url,file1)
-        subprocess.call(['gunzip', file1])
+        fileops.gunzip(file1)
         print('successful download from JP GeoNet')
         if not os.path.isfile(userinfo_file):
             with open(userinfo_file, 'wb') as client_info:
@@ -5411,7 +5412,7 @@ def rinex3_nav(year,month,day):
     filename = bname + '.gz'
     print(dir_secure, filename)
     cddis_download_2022B(filename,dir_secure)
-    status = subprocess.call(['gunzip', filename])
+    fileops.gunzip(filename)
     if os.path.exists(bname):
         foundit = True
         name = bname
@@ -5470,7 +5471,7 @@ def rinex_nrcan_highrate(station, year, month, day):
                 print(url)
                 try:
                     wget.download(url,dname)
-                    subprocess.call(['uncompress',dname])
+                    fileops.uncompress(dname)
                     subprocess.call([crnxpath, dname1])
                     subprocess.call(['rm',dname1])
                     foundFile = foundFile + 1
@@ -5667,7 +5668,7 @@ def inout(c3gz):
     rnx = c3.replace('crx','rnx') # rnx filename
     # gunzip
     if os.path.exists(c3gz):
-        subprocess.call(['gunzip', c3gz])
+        fileops.gunzip(c3gz)
 
     # executable
     crnxpath = hatanaka_version()
@@ -5756,13 +5757,13 @@ def ga_highrate(station9,year,doy,dec,deleteOld=True):
             else:
                 if os.path.exists(file_name): # file exists
                     print('file exists so gunzip it')
-                    subprocess.call(['gunzip', file_name])
+                    fileops.gunzip(file_name)
                 else:
                     # download and gunzip it
                     print(file_name)
                     g.replace_wget(file_url,file_name)
                     #wget.download(file_url,file_name)
-                    subprocess.call(['gunzip', file_name])
+                    fileops.gunzip(file_name)
 
                 # hatanaka uncompress it
                 if os.path.exists(newname):
@@ -5947,10 +5948,10 @@ def check_navexistence(year,month,day):
     if os.path.exists(nfile):
         foundit = True
     if (not foundit) and (os.path.exists(nfile + '.xz' )):
-        subprocess.call(['unxz',nfile + '.xz'])
+        fileops.unxz(nfile + '.xz')
         foundit = True
     if (not foundit) and (os.path.exists(nfile + '.gz' )):
-        subprocess.call(['gunzip',nfile + '.gz'])
+        fileops.gunzip(nfile + '.gz')
         foundit = True
 
     if foundit:
@@ -6368,7 +6369,7 @@ def gbm_orbits_direct(year,month,day):
         foundit = True
         return_name = littlename
     elif os.path.isfile(fullname + '.gz'):
-        subprocess.call(['gunzip', fullname + '.gz'])
+        fileops.gunzip(fullname + '.gz')
         foundit = True; 
         return_name = littlename
 
@@ -6378,7 +6379,7 @@ def gbm_orbits_direct(year,month,day):
             foundit = True
             return_name = bigname
         elif os.path.isfile(fullname + '.gz'):
-            subprocess.call(['gunzip', fullname + '.gz'])
+            fileops.gunzip(fullname + '.gz')
             foundit = True; 
             return_name = littlename
 
@@ -6390,7 +6391,7 @@ def gbm_orbits_direct(year,month,day):
         print(url)
         try:
             wget.download(url,littlename + '.Z')
-            subprocess.call(['uncompress', littlename + '.Z'])
+            fileops.uncompress(littlename + '.Z')
         except:
             okok = 1
 
@@ -6401,7 +6402,7 @@ def gbm_orbits_direct(year,month,day):
             print(url)
             try:
                 wget.download(url,bigname + '.gz')
-                subprocess.call(['gunzip', bigname + '.gz'])
+                fileops.gunzip(bigname + '.gz')
                 foundit = True ; return_name = bigname
             except:
                 okok = 1
@@ -6927,13 +6928,13 @@ def new_ultra_gfz_orbits(year, month, day, hour):
         if os.path.isfile(fullname):
             foundit = True
         elif os.path.isfile(fullname + '.gz'):
-            subprocess.call(['gunzip', fullname + '.gz'])
+            fileops.gunzip(fullname + '.gz')
             foundit = True
         else:
             try:
                 wget.download(url2, longname + '.gz')
                 if os.path.isfile(longname + '.gz'):
-                    subprocess.call(['gunzip', longname + '.gz'])
+                    fileops.gunzip(longname + '.gz')
                     store_orbitfile(longname,year,'sp3') ; 
                 foundit = True
             except:
@@ -6947,16 +6948,16 @@ def new_ultra_gfz_orbits(year, month, day, hour):
         if os.path.isfile(fullname):
             foundit = True
         elif os.path.isfile(fullname + '.xz'):
-            subprocess.call(['unxz', fullname + '.xz'])
+            fileops.unxz(fullname + '.xz')
             foundit = True
         elif os.path.isfile(fullname + '.gz'):
-            subprocess.call(['gunzip', fullname + '.gz'])
+            fileops.gunzip(fullname + '.gz')
             foundit = True
         else:
             try:
                 wget.download(url,littlename + '.gz')
                 if os.path.isfile(littlename + '.gz'):
-                    subprocess.call(['gunzip', littlename + '.gz'])
+                    fileops.gunzip(littlename + '.gz')
                     foundit = True
             except:
                 print('Problems downloading Ultra GFZ orbit (1)')
@@ -7017,14 +7018,14 @@ def another_gfz_orbits(year,month,day, orbtype,hour):
     if os.path.isfile(fullname):
         foundit = True
     elif os.path.isfile(fullname + '.gz'):
-        subprocess.call(['gunzip', fullname + '.gz'])
+        fileops.gunzip(fullname + '.gz')
         foundit = True
     else:
         print(url,filename)
         try: 
             wget.download(url + filename + '.gz', filename+'.gz')
             if os.path.isfile(filename + '.gz'):
-                subprocess.call(['gunzip', filename + '.gz'])
+                fileops.gunzip(filename + '.gz')
                 store_orbitfile(filename,year,'sp3') ; 
                 foundit = True
         except:
@@ -7088,14 +7089,14 @@ def newish_gfz_orbits(year,month,day, orbtype):
         if os.path.isfile(fullname):
             foundit = True
         elif os.path.isfile(fullname + '.gz'):
-            subprocess.call(['gunzip', fullname + '.gz'])
+            fileops.gunzip(fullname + '.gz')
             foundit = True
         else:
             print('Use the new GFZ ftp site: ', url2)
             try:
                 wget.download(url2, longname + '.gz')
                 if os.path.isfile(longname + '.gz'):
-                    subprocess.call(['gunzip', longname + '.gz'])
+                    fileops.gunzip(longname + '.gz')
                     store_orbitfile(longname,year,'sp3') ; 
                 foundit = True
             except:
@@ -7345,7 +7346,7 @@ def one_gfz_archive_to_rule_them_all(year,month,day,orbtype,hour):
         print('found locally ', fdir + '/' + filename)
         foundit = True
     elif os.path.isfile(fullname + '.gz'): # you have it - but it is gzipped
-        subprocess.call(['gunzip', fullname + '.gz'])
+        fileops.gunzip(fullname + '.gz')
         foundit = True
         print('found locally ', fdir + '/' + filename)
     else:
@@ -7353,7 +7354,7 @@ def one_gfz_archive_to_rule_them_all(year,month,day,orbtype,hour):
         try: 
             wget.download(url + filename + '.gz', filename+'.gz')
             if os.path.isfile(filename + '.gz'):
-                subprocess.call(['gunzip', filename + '.gz'])
+                fileops.gunzip(filename + '.gz')
                 store_orbitfile(filename,year,'sp3') ; 
                 foundit = True
         except:
@@ -7378,7 +7379,7 @@ def crx2rnx(crnx_filename):
     # check to see if it is gzipped
     if crnx_filename[-3:] == '.gz':
         # ungzip file
-        subprocess.call(['gunzip', crnx_filename])
+        fileops.gunzip(crnx_filename)
         # rename file 
         crnx_filename = crnx_filename[0:-3]
 

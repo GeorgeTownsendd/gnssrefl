@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 import gnssrefl.gps as g
 import gnssrefl.highrate as ch
 import gnssrefl.kelly as kelly
+import gnssrefl.fileops as fileops
 
 def gogetit(dir1, filename, ext):
     """
@@ -168,7 +169,7 @@ def universal(station9ch, year, doy, archive,srate,stream,debug=False):
         url = dir1 + file_name
         foundit = g.replace_wget(url, file_name)
         if foundit:
-            subprocess.call(['gunzip', file_name])
+            fileops.gunzip(file_name)
             file_name = file_name[0:-3]
             print('Now', file_name)
         else:
@@ -189,7 +190,7 @@ def universal(station9ch, year, doy, archive,srate,stream,debug=False):
             if debug:
                 print('From zip to gz: ', zip_file_name )
             subprocess.call(['unzip', zip_file_name])
-            subprocess.call(['gzip', file_name[0:-3]])
+            fileops.gzip_file(file_name[0:-3])
             # cleaning up
             subprocess.call(['rm', zip_file_name])
             foundit = True
@@ -612,10 +613,10 @@ def make_rinex2_ofiles(file_name):
 
     """
     if (file_name[-1:] == 'Z'):
-        subprocess.call(['uncompress', file_name])
+        fileops.uncompress(file_name)
         file_name = file_name[:-2]
     if (file_name[-2:] == 'gz'):
-        subprocess.call(['gunzip', file_name])
+        fileops.gunzip(file_name)
         file_name = file_name[:-3]
 
     crnxpath = g.hatanaka_version()

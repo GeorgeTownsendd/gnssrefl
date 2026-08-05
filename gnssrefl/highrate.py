@@ -5,6 +5,7 @@ import time
 import wget
 
 import gnssrefl.gps as g
+import gnssrefl.fileops as fileops
 
 def cddis_highrate(station, year, month, day,stream,dec_rate):
     """
@@ -84,7 +85,7 @@ def cddis_highrate(station, year, month, day,stream,dec_rate):
                 fileF = fileF + 1
             elif os.path.isfile(file_name):
                 print('Found gzip/hatanaka file:', new_way_dir,file_name)
-                subprocess.call(['gunzip',file_name])
+                fileops.gunzip(file_name)
                 subprocess.call([crnxpath, crnx_name])
                 subprocess.call(['rm',crnx_name])
                 fileF = fileF + 1
@@ -94,7 +95,7 @@ def cddis_highrate(station, year, month, day,stream,dec_rate):
                     g.cddis_download_2022B(file_name,new_way_dir)
                     if (version == 3):
                         if os.path.isfile(file_name): 
-                            subprocess.call(['gunzip',file_name])
+                            fileops.gunzip(file_name)
                             subprocess.call([crnxpath, crnx_name])
                             subprocess.call(['rm',crnx_name])
                     if (version == 2):
@@ -296,7 +297,7 @@ def bkg_highrate(station, year, month, day,stream,dec_rate,bkg,**kwargs):
                     else:
                         g.replace_wget(dirname+file_name, file_name)
                     if os.path.isfile(file_name):
-                        subprocess.call(['gunzip',file_name]) # unzip
+                        fileops.gunzip(file_name)  # unzip
                         subprocess.call([crnxpath, crnx_name]) # hatanaka
                         subprocess.call(['rm',crnx_name]) # remove old file
                 except:
@@ -407,7 +408,7 @@ def esp_highrate(station, year, month, day,stream,dec_rate):
         else:
             try:
                 g.replace_wget(dirname+file_name,file_name)
-                subprocess.call(['gunzip',file_name]) # gunzip
+                fileops.gunzip(file_name)  # gunzip
                 subprocess.call([crnxpath, crnx_name]) # hatanaka
                 subprocess.call(['rm',crnx_name]) # remove old file
             except:
@@ -545,7 +546,7 @@ def cddis_highrate_tar(station, year, month, day,stream,dec_rate):
                 fileF = fileF + 1
             elif os.path.isfile(new_way_dir + file_name):
                 #print('Found file:', new_way_dir,file_name)
-                subprocess.call(['gunzip',new_way_dir + file_name])
+                fileops.gunzip(new_way_dir + file_name)
                 subprocess.call([crnxpath, new_way_dir + crnx_name])
                 subprocess.call(['rm',new_way_dir + crnx_name])
                 subprocess.call(['mv',new_way_dir + oname, 'gnss/data'])
@@ -667,7 +668,7 @@ def bkg_highrate_tar(station, year, month, day,stream,dec_rate,bkg):
         s2=time.time()
         print('That file took ', int(s2-s1), ' seconds to download')
         if os.path.isfile(file_name1):
-            subprocess.call(['gunzip',file_name1]) # unzip
+            fileops.gunzip(file_name1)  # unzip
             subprocess.call(['tar','-xf', file_name + '.tar'])
         else:
             print('Something is wrong with tar download')
@@ -806,7 +807,7 @@ def kadaster_highrate(station, year, doy,stream,dec_rate):
 
                     if os.path.isfile(file_name):
                         print('found crx')
-                        subprocess.call(['gunzip',file_name]) # unzip
+                        fileops.gunzip(file_name)  # unzip
                         subprocess.call([crnxpath, crnx_name]) # hatanaka
                         subprocess.call(['rm',crnx_name]) # remove old file
                 except:

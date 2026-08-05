@@ -6,17 +6,27 @@ import shutil
 import urllib.error
 from pathlib import Path
 
+import ncompress
 import pytest
 import wget
 
 from gnssrefl.gps import *
 
 
-def test_get_sopac_navfile_working(mocker):
-    mocker.patch("wget.download")
-    mocker.patch("os.path.exists")
-    mocker.patch("subprocess.call")
-    os.path.exists.return_value = True
+def test_get_sopac_navfile_working(tmp_path, monkeypatch, mocker):
+    """
+    SOPAC serves the nav file .Z compressed. Assert the outcome - the nav file
+    is on disk with its contents intact and the compressed original is gone -
+    rather than the argv of the shell tool that used to do the decompressing.
+    """
+    monkeypatch.chdir(tmp_path)
+    nav_contents = b"     2.11           N: GPS NAV DATA                     RINEX VERSION / TYPE\n"
+
+    def download_a_compressed_navfile(url, out):
+        Path(out).write_bytes(ncompress.compress(nav_contents))
+
+    mocker.patch("wget.download", side_effect=download_a_compressed_navfile)
+
     assert (
         get_sopac_navfile("auto1050.20n", "2020", "20", "105")
         == "auto1050.20n"
@@ -25,8 +35,8 @@ def test_get_sopac_navfile_working(mocker):
         "ftp://garner.ucsd.edu/pub/rinex/2020/105/auto1050.20n.Z",
         "auto1050.20n.Z",
     )
-    os.path.exists.assert_called_once_with("auto1050.20n")
-    subprocess.call.assert_called_once_with(["uncompress", "auto1050.20n.Z"])
+    assert (tmp_path / "auto1050.20n").read_bytes() == nav_contents
+    assert not (tmp_path / "auto1050.20n.Z").exists()
 
 
 # this should be changed to run on january 1, 2021 which probably 

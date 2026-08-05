@@ -11,6 +11,7 @@ import subprocess
 import urllib
 
 import gnssrefl.gps as g
+import gnssrefl.fileops as fileops
 
 def download_prn_gps():
     """
@@ -23,7 +24,7 @@ def download_prn_gps():
   
     try:
         urllib.request.urlretrieve(url, file_name)
-        subprocess.call(['gunzip',file_name])
+        fileops.gunzip(file_name)
     except:
         print('something in the download did not work.')
 

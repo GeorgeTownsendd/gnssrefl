@@ -9,6 +9,7 @@ import sys
 
 import gnssrefl.gps as g
 import gnssrefl.rinex2snr as r
+import gnssrefl.fileops as fileops
 
 def main():
     """
@@ -92,7 +93,7 @@ def main():
         log.write('WARNING: your RINEX 3 file will be deleted.')
         log.write('Your RINEX 3 input file does exist: {0:s} \n'.format(rinex3))
         if (rinex3[-2::] == 'gz'):
-            subprocess.call(['gunzip', rinex3])
+            fileops.gunzip(rinex3)
             rinex3 = rinex3[0:-3]
         print(quiet)
         g.new_rinex3_rinex2(rinex3,rinex2,dec,gpsonly,log,quiet=quiet)

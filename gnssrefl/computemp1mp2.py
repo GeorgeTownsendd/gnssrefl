@@ -8,6 +8,7 @@ import time
 import wget
 
 import gnssrefl.gps as g
+import gnssrefl.fileops as fileops
 
 
 def vegplt(station, tv,winter):
@@ -76,7 +77,7 @@ def sfilename(station, year, doy):
         sexist = True
     else: 
         if os.path.isfile(xfile + '.gz'):
-            subprocess.call(['gunzip', xfile + '.gz'])
+            fileops.gunzip(xfile + '.gz')
         if os.path.isfile(xfile):
             sexist = True
 
@@ -256,7 +257,7 @@ def get_files(station,year,doy,look):
     if not os.path.isfile(navfile):
         # it is either zipped
         if os.path.isfile(nd):
-            subprocess.call(['unxz',nd] )
+            fileops.unxz(nd)
         # or you should go get it
         else:
             n1,n2,foundit = g.getnavfile(year, doy, 0)

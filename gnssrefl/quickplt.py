@@ -5,7 +5,6 @@ import datetime
 import matplotlib.pyplot as myplt
 import numpy as np
 import os
-import subprocess
 import sys
 
 
@@ -13,6 +12,7 @@ import gnssrefl.quicklib as q
 import gnssrefl.gps as g
 
 from gnssrefl.utils import validate_input_datatypes, str2bool
+import gnssrefl.fileops as fileops
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -290,13 +290,13 @@ def run_quickplt (filename: str, xcol: str, ycol: str, errorcol: int=None, mjd: 
             filename = longfile
             print('using ', longfile)
         elif not os.path.isfile(filename) and os.path.isfile(longfile_gz):
-            subprocess.call(['gunzip', longfile_gz])
+            fileops.gunzip(longfile_gz)
             filename = longfile
             print('now using ', longfile)
 
     if (not os.path.isfile(filename)) & os.path.isfile(filename + '.gz'):
         print('I will be nice and gunzip the file for you ...')
-        subprocess.call(['gunzip', filename + '.gz'])
+        fileops.gunzip(filename + '.gz')
 
     if os.path.isfile(filename):
         tvd = np.loadtxt(filename,comments=commentsign)

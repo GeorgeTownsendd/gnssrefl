@@ -10,6 +10,7 @@ from scipy.interpolate import interp1d, CubicSpline
 
 import gnssrefl.gps as g
 from gnssrefl.snrfile_functions import constants, elev_limits as snr_elev_limits, propagate_and_azel_sp3
+import gnssrefl.fileops as fileops
 
 def nmea_apriori_coords(station,llh,sp3):
     """
@@ -193,10 +194,10 @@ def nmea_translate(locdir, fname, snrfile, csnr, dec, year, doy, recv, sp3, gzip
         subprocess.call(['cp', '-f',fpath,tmpdir])
     elif os.path.exists(fpath+'.gz'):
         subprocess.call(['cp', '-f',fpath+'.gz',tmpdir])
-        subprocess.call(['gunzip', '-f', tmpfpath+'.gz'])
+        fileops.gunzip('-f', tmpfpath+'.gz')
     elif os.path.exists(fpath+'.Z'):
         subprocess.call(['cp', '-f',fpath+'.Z',tmpdir])
-        subprocess.call(['uncompress', tmpfpath+'.Z'])
+        fileops.uncompress(tmpfpath+'.Z')
     else:
         print('File not found: ', fpath); return
     t, prn, az, elv, snr, freq = read_nmea(tmpfpath) #read nmea files
@@ -983,7 +984,7 @@ def run_nmea2snr(station, year, doy, isnr, overwrite, dec, llh, recv, sp3, gzip,
                         print('SUCCESS: SNR file created', snrfile)
                     if gzip:
                         if not snrfile.endswith('.gz'):
-                            subprocess.call(['gzip', snrfile])
+                            fileops.gzip_file(snrfile)
                             #print('SNR file gzip compressed')
                 else:
                     print('NMEA file '+ locdir + r +' does not exist')
