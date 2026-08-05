@@ -3019,18 +3019,12 @@ def make_nav_dirs(yyyy):
         print(n)
         sys.exit()
     cyyyy = '{:04d}'.format(yyyy)
-    navfiledir = os.environ['ORBITS'] + '/' + cyyyy 
-    if not os.path.exists(navfiledir):
-        subprocess.call(['mkdir',navfiledir])
-        #print('making year directory')
-    navfiledir1 = os.environ['ORBITS'] + '/' + cyyyy + '/nav' 
-    if not os.path.exists(navfiledir1):
-        subprocess.call(['mkdir',navfiledir1])
-        #print('making nav specific directory')
+    navfiledir = os.environ['ORBITS'] + '/' + cyyyy
+    os.makedirs(navfiledir, exist_ok=True)
+    navfiledir1 = os.environ['ORBITS'] + '/' + cyyyy + '/nav'
+    os.makedirs(navfiledir1, exist_ok=True)
     navfiledir2 = os.environ['ORBITS'] + '/' + cyyyy + '/sp3'
-    if not os.path.exists(navfiledir2):
-        #print('making sp3 specific directory')
-        subprocess.call(['mkdir',navfiledir2])
+    os.makedirs(navfiledir2, exist_ok=True)
 
     return True
 
@@ -6075,7 +6069,7 @@ def checkEGM():
             foundfile = True
         elif os.path.isfile(interiorfile):
             print('cp existing copy of EGM96 file to where it belongs')
-            subprocess.call(['cp',interiorfile, localdir])
+            shutil.copy(interiorfile, os.path.join(localdir, matfile))
             foundfile = True
         else:
             print('EGM96 file does not exist. We will try to download for you and store it in ',localdir)
@@ -6746,9 +6740,8 @@ def define_logdir(station,year,doy):
     # universal location for the log directory
     logdir = xdir + '/logs/' + station + '/' + cyyyy + '/'
 
-    # define directory for the 
-    if not os.path.isdir(logdir):
-        subprocess.call(['mkdir', '-p',logdir])
+    # define directory for the
+    os.makedirs(logdir, exist_ok=True)
 
     logname = cdoy + '_translation.txt'
 

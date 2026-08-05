@@ -11,6 +11,7 @@ Tests cover:
 These tests are designed to run fast and locally without requiring external data processing.
 """
 
+import gzip
 import os
 import pytest
 import tempfile
@@ -299,7 +300,9 @@ class TestEdgeCases:
         
         # This will create a path with the problematic extension
         # In a production system, you'd want to sanitize this
-        assert "test/bad" in str(path)
+        # assert on path structure, not a rendered string: str(WindowsPath)
+        # renders the separator as a backslash
+        assert path.parts[-3:-1] == ("test", "bad")
     
     def test_directory_creation_disabled(self, temp_refl_code):
         """Test that directory creation can be disabled."""
@@ -396,10 +399,15 @@ class TestSNRFileResolution:
         return temp_refl_code / cyyyy / 'snr' / station / filename
 
     def _create_snr(self, path, compressed=False):
-        """Helper: create a dummy SNR file (optionally .gz)."""
-        target = Path(str(path) + '.gz') if compressed else path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text('dummy snr data')
+        """Helper: create a dummy SNR file (optionally a genuinely gzipped .gz)."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if compressed:
+            target = Path(str(path) + '.gz')
+            with gzip.open(target, 'wt') as f:
+                f.write('dummy snr data')
+        else:
+            target = path
+            target.write_text('dummy snr data')
         return target
 
     def test_gz_exists_gzip_true(self, temp_refl_code):
@@ -410,17 +418,10 @@ class TestSNRFileResolution:
         assert found
         assert str(obsfile).endswith('.gz')
 
-    @patch('gnssrefl.utils.subprocess.call')
-    def test_uncompressed_exists_gzip_true_compresses_it(self, mock_call, temp_refl_code):
+    def test_uncompressed_exists_gzip_true_compresses_it(self, temp_refl_code):
         """gzip=True with only uncompressed file compresses it and returns .gz path."""
         base = self._snr_path(temp_refl_code, 'test', 2024, 100, 66)
         self._create_snr(base, compressed=False)
-        gz = Path(str(base) + '.gz')
-
-        def fake_gzip(cmd):
-            base.unlink()
-            gz.write_text('dummy compressed')
-        mock_call.side_effect = fake_gzip
 
         obsfile, found = FileManagement('test', 'snr_file', 2024, 100, snr_type=66).find_snr_file(gzip=True)
         assert found
@@ -443,40 +444,31 @@ class TestSNRFileResolution:
         assert found
         assert not str(obsfile).endswith('.gz')
 
-    @patch('gnssrefl.utils.subprocess.call')
-    def test_gz_only_gzip_false_decompresses(self, mock_call, temp_refl_code):
+    def test_gz_only_gzip_false_decompresses(self, temp_refl_code):
         """gzip=False with only .gz decompresses and returns uncompressed path."""
         base = self._snr_path(temp_refl_code, 'test', 2024, 100, 66)
         gz = self._create_snr(base, compressed=True)
 
-        # Simulate gunzip: remove .gz, create uncompressed
-        def fake_gunzip(cmd):
-            gz.unlink()
-            base.write_text('dummy snr data')
-        mock_call.side_effect = fake_gunzip
-
         obsfile, found = FileManagement('test', 'snr_file', 2024, 100, snr_type=66).find_snr_file(gzip=False)
         assert found
         assert not str(obsfile).endswith('.gz')
-        mock_call.assert_called_once_with(['gunzip', str(gz)])
+        # gunzip semantics: the uncompressed file appears and the .gz is consumed
+        assert base.read_text() == 'dummy snr data'
+        assert not gz.exists()
 
-    @patch('gnssrefl.utils.subprocess.call')
-    def test_uncompressed_only_gzip_true_compresses(self, mock_call, temp_refl_code):
+    def test_uncompressed_only_gzip_true_compresses(self, temp_refl_code):
         """gzip=True with only uncompressed file compresses and returns .gz path."""
         base = self._snr_path(temp_refl_code, 'test', 2024, 100, 66)
         self._create_snr(base, compressed=False)
         gz = Path(str(base) + '.gz')
 
-        # Simulate gzip: remove uncompressed, create .gz
-        def fake_gzip(cmd):
-            base.unlink()
-            gz.write_text('dummy compressed')
-        mock_call.side_effect = fake_gzip
-
         obsfile, found = FileManagement('test', 'snr_file', 2024, 100, snr_type=66).find_snr_file(gzip=True)
         assert found
         assert str(obsfile).endswith('.gz')
-        mock_call.assert_called_once_with(['gzip', str(base)])
+        # gzip semantics: the .gz holds the original bytes and the input is consumed
+        assert not base.exists()
+        with gzip.open(gz, 'rt') as f:
+            assert f.read() == 'dummy snr data'
 
     def test_gzip_none_finds_gz(self, temp_refl_code):
         """gzip=None with .gz file returns .gz path without converting."""

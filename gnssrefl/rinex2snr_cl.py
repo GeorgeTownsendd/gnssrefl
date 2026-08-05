@@ -491,7 +491,7 @@ def rinex2snr(station: str = None, year: int = None, doy: int = None, snr: str =
         f1 = xdir + '/' + str(y) + '/snr/' + station[0:4]
         if not os.path.isdir(f1):
             print('make output directory for snr files in ', y)
-            subprocess.call(['mkdir','-p',f1])
+            os.makedirs(f1, exist_ok=True)
 
     # if it exists, you can now store information in the json, like samplerate and snr
     # set noexit cause otherwise it exits ...

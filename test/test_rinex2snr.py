@@ -1,5 +1,6 @@
 import gzip
-import stat
+import shutil
+import subprocess
 
 import pytest
 
@@ -33,9 +34,21 @@ def gnssrefl_dirs(tmp_path, monkeypatch):
 def translated(tmp_path, monkeypatch, gnssrefl_dirs):
     """stands in for CRX2RNX, and records what conv2snr was handed"""
     crnxpath = tmp_path / 'CRX2RNX'
-    crnxpath.write_text('#!/bin/sh\ncp "$1" "${1%.*}.rnx"\n')
-    crnxpath.chmod(crnxpath.stat().st_mode | stat.S_IXUSR)
+    crnxpath.write_text('placeholder, calls to this path are intercepted below\n')
     monkeypatch.setattr(rnx.g, 'hatanaka_version', lambda: str(crnxpath))
+
+    # there is no portable way to write a fake executable - a shebang means
+    # nothing on windows, and a .bat cannot be launched without shell=True - so
+    # intercept the call instead and do what CRX2RNX would have done
+    real_call = subprocess.call
+
+    def fake_crx2rnx(cmd, *args, **kwargs):
+        if isinstance(cmd, list) and cmd and cmd[0] == str(crnxpath):
+            shutil.copyfile(cmd[1], os.path.splitext(cmd[1])[0] + '.rnx')
+            return 0
+        return real_call(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(rnx.subprocess, 'call', fake_crx2rnx)
 
     calls = []
 

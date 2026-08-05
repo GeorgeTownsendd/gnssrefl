@@ -1,8 +1,9 @@
+import gzip as gzip_mod
 import json
 import numpy as np
 import os
 import platform
-import subprocess
+import shutil
 import sys
 import warnings
 
@@ -552,14 +553,18 @@ class FileManagement:
                 if gz_valid:
                     return gz_path, True
                 if base.exists():
-                    subprocess.call(['gzip', str(base)])
+                    with open(base, 'rb') as f_in, gzip_mod.open(gz_path, 'wb', compresslevel=6) as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                    base.unlink()
                     if gz_path.exists() and gz_path.stat().st_size > 0:
                         return gz_path, True
             else:
                 if base.exists():
                     return base, True
                 if gz_valid:
-                    subprocess.call(['gunzip', str(gz_path)])
+                    with gzip_mod.open(gz_path, 'rb') as f_in, open(base, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                    gz_path.unlink()
                     if base.exists():
                         return base, True
 
