@@ -33,9 +33,9 @@ jobs:
       - name: Generate actual output (current code)
         run: |
           docker exec -i gnssrefl /src/test/run_processing.sh local /src/test/data/actual
-      - name: Install pytest
+      - name: Install test dependencies
         run: |
-          docker exec -i gnssrefl pip3 install 'pytest~=7.2' 'pytest-mock~=3.10'
+          docker exec -i gnssrefl pip3 install -r /src/requirements-dev.txt
       - name: Run unit tests
         run: |
           docker exec -i gnssrefl pytest /src/test -v
