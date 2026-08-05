@@ -192,7 +192,7 @@ def universal(station9ch, year, doy, archive,srate,stream,debug=False):
             subprocess.call(['unzip', zip_file_name])
             fileops.gzip_file(file_name[0:-3])
             # cleaning up
-            subprocess.call(['rm', zip_file_name])
+            fileops.remove(zip_file_name)
             foundit = True
         else:
             print('File was not found: at bfg.')
@@ -273,7 +273,7 @@ def universal(station9ch, year, doy, archive,srate,stream,debug=False):
     if os.path.exists(file_name):
         siz = os.path.getsize(file_name)
         if (siz == 0):
-            subprocess.call(['rm',file_name])
+            fileops.remove(file_name)
             print('File was not found: ', file_name, ' at ', archive)
         else:
             print('File exists: ', file_name, ' at ', archive)
@@ -626,7 +626,7 @@ def make_rinex2_ofiles(file_name):
     if file_name[-1:] == 'd':
         if os.path.exists(crnxpath):
             subprocess.call([crnxpath, file_name])
-            subprocess.call(['rm', '-f',file_name])
+            fileops.remove(file_name)
         else:
             g.hatanaka_warning()
     elif file_name[-1:] == 'o':
@@ -658,8 +658,8 @@ def strip_rinexfile(rinexfile):
         fout = open(foutname,'w')
         subprocess.call([teqcv, '-O.obs','S1+S2+S5+S6+S7+S8', rinexfile],stdout=fout)
         fout.close()
-        subprocess.call(['rm','-f',rinexfile])
-        subprocess.call(['mv','-f',foutname, rinexfile])
+        fileops.remove(rinexfile)
+        fileops.move(foutname, rinexfile)
     else:
         gfzrnxpath = g.gfz_version()
         if os.path.isfile(gfzrnxpath):
@@ -667,7 +667,7 @@ def strip_rinexfile(rinexfile):
             tempfile = rinexfile + '.tmp'
             # save yourself heartache down the way cause those doppler data are just clogging up the works
             subprocess.call([gfzrnxpath,'-finp', rinexfile, '-fout', tempfile, '-vo','2','-f', '-obs_types', 'S','-q'])
-            subprocess.call(['mv', '-f', tempfile, rinexfile])
+            fileops.move(tempfile, rinexfile)
 
 def gsi_data(station,year,doy):
     """
@@ -739,7 +739,7 @@ def rinex2_highrate(station, year, doy,archive,strip_snr):
             tempfile = rinexfile + '.tmp'
         # save yourself heartache down the way cause those doppler data are just clogging up the works
             subprocess.call([gfzrnxpath,'-finp', rinexfile, '-fout', tempfile, '-vo','2','-f', '-obs_types', 'S','-q'])
-            subprocess.call(['mv', '-f', tempfile, rinexfile])
+            fileops.move(tempfile, rinexfile)
 
     return rinexfile, foundit
 
@@ -820,7 +820,7 @@ def serial_cddis_files(dname,cyyyy,cdoy):
     if os.path.exists(gz_file_name):
         siz = os.path.getsize(gz_file_name)
         if siz == 0:
-            subprocess.call(['rm',gz_file_name])
+            fileops.remove(gz_file_name)
         else:
             foundit = True
             f = gz_file_name
@@ -836,7 +836,7 @@ def serial_cddis_files(dname,cyyyy,cdoy):
         if os.path.exists(Z_file_name):
             siz = os.path.getsize(Z_file_name)
             if siz == 0:
-                subprocess.call(['rm',Z_file_name])
+                fileops.remove(Z_file_name)
             else:
                 foundit = True
                 f = Z_file_name

@@ -2,10 +2,10 @@
 import argparse
 import numpy as np
 import os
-import subprocess
 import sys
 
 import gnssrefl.gps as g
+import gnssrefl.fileops as fileops
 
 def main():
     """
@@ -84,7 +84,7 @@ def main():
                 sys.exit()
             fout.close()
             print('new/decimated snrfile created')
-            subprocess.call(['mv','-f',snrfilet,snrfile])
+            fileops.move(snrfilet, snrfile)
 
 if __name__ == "__main__":
     main()

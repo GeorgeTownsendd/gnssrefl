@@ -3,7 +3,6 @@ from __future__ import division
 import json
 import numpy as np 
 import os, datetime, traceback, gzip
-import subprocess
 import sys
 import tempfile
 from scipy.interpolate import interp1d, CubicSpline
@@ -191,17 +190,17 @@ def nmea_translate(locdir, fname, snrfile, csnr, dec, year, doy, recv, sp3, gzip
     print('fpath: ', fpath)
 
     if os.path.exists(fpath):
-        subprocess.call(['cp', '-f',fpath,tmpdir])
+        fileops.copy(fpath, tmpdir)
     elif os.path.exists(fpath+'.gz'):
-        subprocess.call(['cp', '-f',fpath+'.gz',tmpdir])
+        fileops.copy(fpath+'.gz', tmpdir)
         fileops.gunzip('-f', tmpfpath+'.gz')
     elif os.path.exists(fpath+'.Z'):
-        subprocess.call(['cp', '-f',fpath+'.Z',tmpdir])
+        fileops.copy(fpath+'.Z', tmpdir)
         fileops.uncompress(tmpfpath+'.Z')
     else:
         print('File not found: ', fpath); return
     t, prn, az, elv, snr, freq = read_nmea(tmpfpath) #read nmea files
-    subprocess.call(['rm',tmpfpath])
+    fileops.remove(tmpfpath)
     tmpobj.cleanup()
     
     #print('Number of t values ', len(t))
@@ -964,10 +963,10 @@ def run_nmea2snr(station, year, doy, isnr, overwrite, dec, llh, recv, sp3, gzip,
                     print('SNR file exists, but you requested it be overwritten')
                     # just in case you have a previously gunzipped version
                     if os.path.exists(snrfile):
-                        subprocess.call(['rm', snrfile])
+                        fileops.remove(snrfile)
                         snre = False
                     if os.path.exists(snrfile + '.gz'):
-                        subprocess.call(['rm', snrfile + '.gz'])
+                        fileops.remove(snrfile + '.gz')
                         snre = False
                 else:
                     print('SNR file already exists', snrfile)

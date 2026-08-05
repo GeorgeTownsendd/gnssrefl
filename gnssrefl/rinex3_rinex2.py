@@ -4,7 +4,6 @@ Translates rinex3 to rinex2. relies on gfzrnx
 """
 import argparse
 import os
-import subprocess
 import sys
 
 import gnssrefl.gps as g
@@ -73,7 +72,7 @@ def main():
 
     print('RINEX 2 filename will be ', rinex2)
     if  os.path.exists(rinex2) and args.overwrite == 'T':
-        subprocess.call(['rm', rinex2])
+        fileops.remove(rinex2)
 
     if args.dec is None:
         dec = 1

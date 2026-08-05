@@ -471,7 +471,7 @@ def getnavfile(year, month, day):
         navstatus = navfile_retrieve(navname, cyyyy,cyy,cdoy) 
         if navstatus:
             #print('\n navfile being moved to online storage area')
-            subprocess.call(['mv',navname, navdir])
+            fileops.move(navname, navdir)
             foundit = True
         else:
             print('No navfile found')
@@ -525,7 +525,7 @@ def getsp3file(year,month,day):
             store_orbitfile(name,year,'sp3') 
         except:
             print('some kind of problem -remove empty file')
-            subprocess.call(['rm',file1])
+            fileops.remove(file1)
 
     return name, fdir
 
@@ -587,7 +587,7 @@ def getsp3file_flex(year,month,day,pCtr):
         if os.path.isfile(sec_file):
             siz = os.path.getsize(sec_file)
             if (siz == 0):
-                subprocess.call(['rm','-f',sec_file])
+                fileops.remove(sec_file)
 
     return name, fdir, foundit
 
@@ -757,7 +757,7 @@ def orbfile_cddis(name, year, secure_file, secure_dir, file2):
         siz = os.path.getsize(secure_file)
         #print('File size', siz)
         if (siz == 0):
-            subprocess.call(['rm', secure_file])
+            fileops.remove(secure_file)
         else:
             foundit = True
             if gzip:
@@ -2265,7 +2265,7 @@ def store_orbitfile(filename,year,orbtype):
         os.makedirs(xdir)
     if (os.path.isfile(filename) == True):
         #print('moving ', filename, ' to ', xdir)
-        status = subprocess.call(['mv','-f', filename, xdir])
+        fileops.move(filename, xdir)
     else:
         print('The orbit file did not exist, so it was not stored')
 
@@ -2485,7 +2485,7 @@ def rinex_unavco_highrate(station, year, month, day):
             if foundit:
                 fileops.uncompress(filename2)
                 subprocess.call([crnxpath, rinexfiled])
-                subprocess.call(['rm','-f',rinexfiled])
+                fileops.remove(rinexfiled)
         except:
             okok = 1
     if not os.path.isfile(rinexfile):
@@ -3161,7 +3161,7 @@ def rinex_ga_highrate(station, year, month, day):
                 fileops.gunzip(dname)
                 subprocess.call([crnxpath, dname1])
                 # delete the d file
-                subprocess.call(['rm',dname1])
+                fileops.remove(dname1)
                 fileF = fileF + 1
             except:
                 okok = 1
@@ -3176,13 +3176,13 @@ def rinex_ga_highrate(station, year, month, day):
         fout = open(foutname,'w')
         subprocess.call(mergecommand,stdout=fout,shell=True)
         fout.close()
-        cm = 'rm ' + station + cdoy + '*o'
-        print(cm)
+        searchpath = station + cdoy + '*o'
+        print('removing ' + searchpath)
         # if the output is made (though I guess this does not check to see if it is empty)
         if os.path.isfile(foutname):
             # try to remove the 15 minute files
-            subprocess.call(cm,shell=True)
-            subprocess.call(['mv',foutname,rinexname])
+            fileops.remove_glob(searchpath)
+            fileops.move(foutname, rinexname)
     else:
         print('No files were available for you from GA.')
 
@@ -3561,7 +3561,7 @@ def ign_rinex3(station9ch, year, doy,srate):
         fileops.gunzip(ff)
         subprocess.call([crnxpath,ff1])
         # get rid of compressed file
-        subprocess.call(['rm','-f',ff1])
+        fileops.remove(ff1)
     except:
         print('problem with IGN download')
 
@@ -3704,8 +3704,8 @@ def get_sopac_navfile_cron(yyyy,doy):
         filefound = True
     else:
         print('Corrupted file/download failures at SOPAC')
-        subprocess.call(['rm','-f',navfile_sopac1])
-        subprocess.call(['rm','-f',navfile])
+        fileops.remove(navfile_sopac1)
+        fileops.remove(navfile)
 
     return filefound 
 
@@ -3749,8 +3749,8 @@ def get_sopac_navfile(navfile,cyyyy,cyy,cdoy):
         foundfile = True
     else:
         print('Corrupted file/download failures at SOPAC')
-        subprocess.call(['rm','-f',navfile_compressed])
-        subprocess.call(['rm','-f',navfile])
+        fileops.remove(navfile_compressed)
+        fileops.remove(navfile)
 
     return navfile
 
@@ -3812,7 +3812,7 @@ def get_esa_navfile(cyyyy,cdoy):
 
     # rename it.
     if os.path.exists(navfile):
-        subprocess.call(['mv',navfile, navfile_out])
+        fileops.move(navfile, navfile_out)
         fstatus = True
     else:
         print('No file was found at ESA')
@@ -3860,7 +3860,7 @@ def get_cddis_navfile(navfile,cyyyy,cyy,cdoy):
         if os.path.isfile(cddisfile_compressed):
             size = os.path.getsize(cddisfile_compressed)
             if (size == 0):
-                subprocess.call(['rm',cddisfile_compressed])
+                fileops.remove(cddisfile_compressed)
             else:
                 fileops.uncompress(cddisfile_compressed)
             foundit = True
@@ -3874,14 +3874,14 @@ def get_cddis_navfile(navfile,cyyyy,cyy,cdoy):
         if os.path.isfile(cddisfile_gzip):
             size = os.path.getsize(cddisfile_gzip)
             if (size == 0):
-                subprocess.call(['rm',cddisfile_gzip])
+                fileops.remove(cddisfile_gzip)
             else:
                 fileops.gunzip(cddisfile_gzip)
                 foundit = True
     
     if os.path.isfile(cddisfile):
         print('Change the filename to what we use ', navfile)
-        subprocess.call(['mv',cddisfile,navfile])
+        fileops.move(cddisfile, navfile)
 
     return navfile
 
@@ -4160,7 +4160,7 @@ def big_Disk_work_hard(station,year,month,day,delete_hourly):
     
     # attempt to merge - check for pre-existing file
     if os.path.isfile(rinexfile):
-        subprocess.call(['rm','-f', rinexfile])
+        fileops.remove(rinexfile)
 
     # now merge the hourly files you have 
     subprocess.call([gexe,'-finp', searchpath, '-fout', rinexfile, '-vo','2','-obs_types', 'S','-f','-q'])
@@ -5132,7 +5132,7 @@ def rinex_unavco(station, year, month, day):
                 wget.download(url2,filename2)
                 fileops.uncompress(filename2)
                 status = subprocess.call([crnxpath, rinexfiled])
-                status = subprocess.call(['rm', '-f', rinexfiled])
+                fileops.remove(rinexfiled)
             except:
                 okokok =1
             #except Exception as err:
@@ -5190,7 +5190,7 @@ def avoid_cddis(year,month,day):
         try:
             wget.download(url,filenameZ)
             fileops.uncompress(filenameZ)
-            subprocess.call(['mv',filename, fdir])
+            fileops.move(filename, fdir)
             foundit = True
         except:
             print('could not find ', filename)
@@ -5213,7 +5213,7 @@ def avoid_cddis(year,month,day):
             wget.download(url, filenamegz)
             if os.path.exists(filenamegz):
                 fileops.gunzip(filenamegz)
-                subprocess.call(['mv',filename, fdir])
+                fileops.move(filename, fdir)
                 foundit=True
         except:
             print('could not find',filename)
@@ -5287,7 +5287,7 @@ def rinex_jp(station, year, month, day):
                 print('user id and password saved to', userinfo_file)
     except:
         print('some kind of problem with Japanese GSI GeoNet download',file1)
-        subprocess.call(['rm', '-f',file1])
+        fileops.remove(file1)
 
 
 def queryUNR_modern(station):
@@ -5473,7 +5473,7 @@ def rinex_nrcan_highrate(station, year, month, day):
                     wget.download(url,dname)
                     fileops.uncompress(dname)
                     subprocess.call([crnxpath, dname1])
-                    subprocess.call(['rm',dname1])
+                    fileops.remove(dname1)
                     foundFile = foundFile + 1
                 except:
                     okok = 1
@@ -5493,11 +5493,11 @@ def rinex_nrcan_highrate(station, year, month, day):
         print('Attempt to merge the 15 minute files using gfzrnx and move to ', rinexname)
         tmpname = station + cdoy + '0.' + cyy + 'o.tmp'
         subprocess.call([gfzrnxpath,'-finp', searchpath, '-fout', tmpname, '-vo','2','-f','-q'])
-        cm = 'rm ' + station + cdoy + '*o'
+        fifteen_minute_files = station + cdoy + '*o'
         if os.path.isfile(tmpname):
             # try to remove the 15 minute files
-            subprocess.call(cm,shell=True)
-            subprocess.call(['mv',tmpname,rinexname])
+            fileops.remove_glob(fifteen_minute_files)
+            fileops.move(tmpname, rinexname)
             s2 = time.time(); print('That took ', int(s2-s1), ' seconds.')
         return
 
@@ -5510,11 +5510,11 @@ def rinex_nrcan_highrate(station, year, month, day):
         fout = open(foutname,'w')
         subprocess.call(mergecommand,stdout=fout,shell=True)
         fout.close()
-        cm = 'rm ' + station + cdoy + '*o'
+        fifteen_minute_files = station + cdoy + '*o'
         if os.path.isfile(foutname):
             # try to remove the 15 minute files
-            subprocess.call(cm,shell=True)
-            subprocess.call(['mv',foutname,rinexname])
+            fileops.remove_glob(fifteen_minute_files)
+            fileops.move(foutname, rinexname)
             s2 = time.time(); print('That took ', int(s2-s1), ' seconds.')
         return
 
@@ -5679,7 +5679,7 @@ def inout(c3gz):
             subprocess.call([crnxpath,c3])
     if os.path.exists(rnx): # file exists
         translated = True
-        subprocess.call(['rm','-f',c3])
+        fileops.remove(c3)
 
     return translated, rnx
 
@@ -5788,18 +5788,15 @@ def ga_highrate(station9,year,doy,dec,deleteOld=True):
         fexist = True
 
     # should always remove tmp files
-    searchpath =  station + cdoy + '0.'  + cyy + 'otmp*' 
-    cm ='rm -f ' + searchpath
-    subprocess.call(cm,shell=True)
+    searchpath =  station + cdoy + '0.'  + cyy + 'otmp*'
+    fileops.remove_glob(searchpath)
 
 # remove detritus
     if deleteOld:
         searchpath = station9.upper()  + '*' + cyyyy + cdoy + '*rnx'
-        cm ='rm -f ' + searchpath
-        subprocess.call(cm,shell=True)
+        fileops.remove_glob(searchpath)
         searchpath = station9.upper()  + '*' + cyyyy + cdoy + '*crx'
-        cm ='rm -f ' + searchpath
-        subprocess.call(cm,shell=True)
+        fileops.remove_glob(searchpath)
     return rinex2, fexist
 
 
@@ -5864,7 +5861,7 @@ def cddis_download_2022B(filename,directory):
     siz = os.path.getsize(filename)
     if siz == 0:
         print('No file found')
-        subprocess.call(['rm',filename])
+        fileops.remove(filename)
     #else:
     #    print('That file does not exist at CDDIS')
 
@@ -5911,7 +5908,7 @@ def getnavfile_archive(year, month, day, archive):
         if (archive == 'cddis'):
             get_cddis_navfile(navname,cyyyy,cyy,cdoy)
         if os.path.exists(navname):
-            subprocess.call(['mv',navname, navdir])
+            fileops.move(navname, navdir)
             foundit = True
         else:
             foundit = False
@@ -6606,7 +6603,7 @@ def unr_database(file1, file2, database_file):
 
     if (not exist1) & exist2:
         print('cp from local directory to Files directory because that is where it goes')
-        subprocess.call(['cp', file2, file1])
+        fileops.copy(file2, file1)
 
     # just to be sure
     if (not exist1) & (not exist2):
@@ -6829,22 +6826,22 @@ def trignet(station,year,doy):
         station_u = station.upper() + cdoy + 'z.' + cyy 
         station_l = station.lower() + cdoy + '0.' + cyy 
     # in case they are there
-        subprocess.call(['rm', '-f','unpack.bat'])
-        subprocess.call(['rm', '-f','CRX2RNX.EXE'])
+        fileops.remove('unpack.bat')
+        fileops.remove('CRX2RNX.EXE')
         try:
             archive = zipfile.ZipFile(the_zipfile, 'r')
             subprocess.call(['unzip', the_zipfile])
-            subprocess.call(['rm', '-f',station.upper() + cdoy + 'Z.' + cyy + 'q'])
-            subprocess.call(['rm', '-f',station.upper() + cdoy + 'Z.' + cyy + 'n'])
-            subprocess.call(['rm', '-f',station.upper() + cdoy + 'Z.zip'])
+            fileops.remove(station.upper() + cdoy + 'Z.' + cyy + 'q')
+            fileops.remove(station.upper() + cdoy + 'Z.' + cyy + 'n')
+            fileops.remove(station.upper() + cdoy + 'Z.zip')
             if os.path.exists(station_u +'d'):
-                subprocess.call(['mv', station_u + 'd', station_l + 'd' ])
-                subprocess.call(['rm', '-f','unpack.bat'])
-                subprocess.call(['rm', '-f','CRX2RNX.EXE'])
+                fileops.move(station_u + 'd', station_l + 'd')
+                fileops.remove('unpack.bat')
+                fileops.remove('CRX2RNX.EXE')
 
                 crnxpath = hatanaka_version()
                 subprocess.call([crnxpath, station_l + 'd'])
-                subprocess.call(['rm', '-f',station_l + 'd'])
+                fileops.remove(station_l + 'd')
 
         except:
             print('probably a corrupt zipfile, but who knows')
@@ -7390,7 +7387,7 @@ def crx2rnx(crnx_filename):
     subprocess.call([crnxpath, crnx_filename])
     if os.path.isfile(rnx_filename):
         print('successful conversion from crnx to rnx, so removing crnx file now')
-        subprocess.call(['rm', crnx_filename])
+        fileops.remove(crnx_filename)
 
     return rnx_filename
 

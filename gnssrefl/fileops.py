@@ -218,6 +218,35 @@ def move(src, dst):
     return True
 
 
+def copy(src, dst):
+    """
+    Copy a file, as cp does. dst may be a directory.
+
+    shutil.copy raises where cp merely returned a non-zero status, including
+    SameFileError when the two paths are the same file, so the exceptions are
+    swallowed here to keep the behaviour these call sites already had.
+
+    Parameters
+    ----------
+    src : str
+        file to copy
+    dst : str
+        destination file or directory
+
+    Returns
+    -------
+    bool
+        True on success
+    """
+    try:
+        shutil.copy(src, dst)
+    except (OSError, shutil.SameFileError) as e:
+        print('Could not copy ' + src + ' to ' + dst + ' : ' + str(e))
+        return False
+
+    return True
+
+
 def remove(filename):
     """
     Delete a file, tolerating one that is not there, as rm -f does.
@@ -262,6 +291,36 @@ def remove_glob(pattern):
     allgood = True
     for filename in glob.glob(pattern):
         if not remove(filename):
+            allgood = False
+
+    return allgood
+
+
+def remove_tree(pattern):
+    """
+    Delete every file or directory matching a wildcard pattern, as rm -rf does.
+
+    Directories go recursively. Matching zero paths is not an error.
+
+    Parameters
+    ----------
+    pattern : str
+        wildcard pattern, e.g. gnss/data/highrate/2025/011/25d/*
+
+    Returns
+    -------
+    bool
+        True if everything that matched was removed
+    """
+    allgood = True
+    for name in glob.glob(pattern):
+        if os.path.isdir(name) and not os.path.islink(name):
+            try:
+                shutil.rmtree(name)
+            except OSError as e:
+                print('Could not remove directory ' + name + ' : ' + str(e))
+                allgood = False
+        elif not remove(name):
             allgood = False
 
     return allgood

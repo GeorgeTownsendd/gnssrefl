@@ -277,3 +277,83 @@ def test_remove_glob(tmp_path):
 def test_remove_glob_no_matches(tmp_path):
     """rm -f on a pattern that matches nothing is not an error"""
     assert fileops.remove_glob(str(tmp_path / 'nothing_matches_this*')) is True
+
+
+def test_remove_glob_leaves_directories(tmp_path):
+    """remove_glob is rm -f, not rm -rf, so a matching directory is not removed"""
+    (tmp_path / 'p1010010.25otmp1').write_bytes(PAYLOAD)
+    (tmp_path / 'p1010010.25otmpdir').mkdir()
+
+    assert fileops.remove_glob(str(tmp_path / 'p1010010.25otmp*')) is False
+
+    assert (tmp_path / 'p1010010.25otmpdir').is_dir()
+    assert not (tmp_path / 'p1010010.25otmp1').exists()
+
+
+# remove_tree
+
+
+def test_remove_tree(tmp_path):
+    """rm -rf takes directories, recursively, as well as files"""
+    nested = tmp_path / '25d' / 'deep' / 'deeper'
+    nested.mkdir(parents=True)
+    (nested / 'buried.rnx').write_bytes(PAYLOAD)
+    (tmp_path / '25d' / 'loose.rnx').write_bytes(PAYLOAD)
+    keep = tmp_path / 'keep.rnx'
+    keep.write_bytes(PAYLOAD)
+
+    assert fileops.remove_tree(str(tmp_path / '25*')) is True
+
+    assert not (tmp_path / '25d').exists()
+    assert keep.exists()
+
+
+def test_remove_tree_no_matches(tmp_path):
+    """rm -rf on a pattern that matches nothing is not an error"""
+    assert fileops.remove_tree(str(tmp_path / 'nothing_matches_this*')) is True
+
+
+# copy
+
+
+def test_copy_to_file(tmp_path):
+    """a file destination copies and leaves the original in place"""
+    source = tmp_path / 'p1010010.25o'
+    source.write_bytes(PAYLOAD)
+    destination = tmp_path / 'copy.25o'
+
+    assert fileops.copy(str(source), str(destination)) is True
+
+    assert destination.read_bytes() == PAYLOAD
+    assert source.exists()
+
+
+def test_copy_to_directory(tmp_path):
+    """a directory destination keeps the basename, as cp does"""
+    source = tmp_path / 'p1010010.25o'
+    source.write_bytes(PAYLOAD)
+    destination = tmp_path / 'input'
+    destination.mkdir()
+
+    assert fileops.copy(str(source), str(destination)) is True
+
+    assert (destination / 'p1010010.25o').read_bytes() == PAYLOAD
+
+
+def test_copy_onto_itself(tmp_path):
+    """
+    cp reports that source and destination are the same file and carries on.
+    shutil.copy raises SameFileError, which would turn a silent no-op on Linux
+    into a crash, so copy has to swallow it.
+    """
+    source = tmp_path / 'p1010010.25o'
+    source.write_bytes(PAYLOAD)
+
+    assert fileops.copy(str(source), str(tmp_path)) is False
+
+    assert source.read_bytes() == PAYLOAD
+
+
+def test_copy_missing_source(tmp_path):
+    """copying a file that is not there fails without raising"""
+    assert fileops.copy(str(tmp_path / 'missing.o'), str(tmp_path / 'dst.o')) is False

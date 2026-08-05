@@ -254,11 +254,11 @@ def run_rinex2snr(station, year, doy,  isnr, orbtype, rate,dec_rate,archive, nol
                             log.write('Trying  to look for RINEX 3 file in {0:s} \n'.format( local_rinex3_dir))
                             lrinex3 = local_rinex3_dir+r3
                             if os.path.exists(lrinex3):
-                                subprocess.call(['cp', lrinex3, '.'])
+                                fileops.copy(lrinex3, '.')
                             else:
                                 lrinex3 = local_rinex3_dir+r3cmpgz
                                 if os.path.exists(lrinex3):
-                                    subprocess.call(['cp', lrinex3, '.']); 
+                                    fileops.copy(lrinex3, '.')
                                     deletecrx = True
                                     translated, rnx_filename = go_from_crxgz_to_rnx(r3cmpgz,deletecrx)
                         if os.path.exists(r3):
@@ -1200,7 +1200,7 @@ def the_makan_option(station,cyyyy,cyy,cdoy):
     if os.path.exists(rd) and missing:
         if os.path.exists(crnxpath):
             subprocess.call([crnxpath,rd])
-            subprocess.call(['rm',rd])
+            fileops.remove(rd)
             missing = False
             return
         else:
@@ -1211,7 +1211,7 @@ def the_makan_option(station,cyyyy,cyy,cdoy):
         fileops.gunzip(rd + '.gz')
         if os.path.exists(crnxpath):
             subprocess.call([crnxpath,rd])
-            subprocess.call(['rm',rd])
+            fileops.remove(rd)
             missing = False
             return
         else:
@@ -1221,7 +1221,7 @@ def the_makan_option(station,cyyyy,cyy,cdoy):
         fileops.uncompress(rd + '.Z')
         if os.path.exists(crnxpath):
             subprocess.call([crnxpath,rd])
-            subprocess.call(['rm',rd])
+            fileops.remove(rd)
             missing = False; return
         else:
             g.hatanaka_warning() ; return
@@ -1229,7 +1229,7 @@ def the_makan_option(station,cyyyy,cyy,cdoy):
     makan_warning(missing, locdir + r )
 
     if os.path.exists(locdir + r) and missing:
-        subprocess.call(['cp', '-f',locdir + r,'.'])
+        fileops.copy(locdir + r, '.')
         missing = False
         return
 
@@ -1237,24 +1237,24 @@ def the_makan_option(station,cyyyy,cyy,cdoy):
 
     if os.path.exists(locdir + r + '.gz') and missing:
         #print('type 8')
-        subprocess.call(['cp', '-f',locdir + r + '.gz' ,'.'])
+        fileops.copy(locdir + r + '.gz', '.')
         fileops.gunzip(r + '.gz')
         missing = False; return
 
     makan_warning(missing, locdir + r + '.Z')
 
     if os.path.exists(locdir + r + '.Z') and missing:
-        subprocess.call(['cp', '-f',locdir + r + '.Z','.'])
+        fileops.copy(locdir + r + '.Z', '.')
         fileops.uncompress(r + '.Z')
         missing = False ; return
 
     makan_warning(missing, locdir + rd )
 
     if os.path.exists(locdir + rd) and missing:
-        subprocess.call(['cp','-f',locdir + rd,'.'])
+        fileops.copy(locdir + rd, '.')
         if os.path.exists(crnxpath):
             subprocess.call([crnxpath,rd])
-            subprocess.call(['rm',rd])
+            fileops.remove(rd)
             missing = False ; return
         else:
             g.hatanaka_warning(); return
@@ -1262,11 +1262,11 @@ def the_makan_option(station,cyyyy,cyy,cdoy):
     makan_warning(missing, locdir + rd + '.Z')
 
     if os.path.exists(locdir + rd + '.Z') and missing:
-        subprocess.call(['cp','-f',locdir + rd + '.Z','.'])
+        fileops.copy(locdir + rd + '.Z', '.')
         fileops.uncompress(rd + '.Z')
         if os.path.exists(crnxpath):
             subprocess.call([crnxpath,rd])
-            subprocess.call(['rm',rd])
+            fileops.remove(rd)
             missing = False ; return
         else:
             g.hatanaka_warning();
@@ -1274,11 +1274,11 @@ def the_makan_option(station,cyyyy,cyy,cdoy):
     makan_warning(missing, locdir + rd + '.gz')
 
     if os.path.exists(locdir + rd + '.gz') and missing:
-        subprocess.call(['cp','-f',locdir + rd + '.gz','.'])
+        fileops.copy(locdir + rd + '.gz', '.')
         fileops.gunzip(rd + '.gz')
         if os.path.exists(crnxpath):
             subprocess.call([crnxpath,rd])
-            subprocess.call(['rm',rd])
+            fileops.remove(rd)
             missing = False ; return
         else:
             g.hatanaka_warning() ; return
@@ -1338,7 +1338,7 @@ def go_from_crx_to_rnx(crx,deletecrx=True):
         translated = True
         if deletecrx:
             #print('remove Hatanaka compressed file')
-            subprocess.call(['rm','-f',crx])
+            fileops.remove(crx)
 
     return translated, rnx
 def go_from_crxgz_to_rnx(c3gz,deletecrx=True):
@@ -1382,7 +1382,7 @@ def go_from_crxgz_to_rnx(c3gz,deletecrx=True):
         translated = True
         if deletecrx:
             #print('remove Hatanaka compressed file')
-            subprocess.call(['rm','-f',c3])
+            fileops.remove(c3)
 
     return translated, rnx
 
@@ -1440,7 +1440,7 @@ def get_local_rinexfile(rfile,localpath2):
             subprocess.call([crnxpath,rd])
             if os.path.exists(rfile):
                 allgood = True
-                subprocess.call(['rm',rd])
+                fileops.remove(rd)
                 return allgood
 
     # then look for hatanaka compressed and unix compressed version local directory 
@@ -1451,7 +1451,7 @@ def get_local_rinexfile(rfile,localpath2):
             subprocess.call([crnxpath,rd])
             if os.path.exists(rfile):
                 allgood = True
-                subprocess.call(['rm',rd])
+                fileops.remove(rd)
                 return allgood
 
     # now check in 
@@ -1465,7 +1465,7 @@ def get_local_rinexfile(rfile,localpath2):
             allgood = True
         # cp to the local directory
             print('copying RINEX file to local area')
-            subprocess.call(['cp',r,'.'])
+            fileops.copy(r, '.')
             return allgood
         else:
        # did not find normal rinex, so look for gzip version
@@ -1474,7 +1474,7 @@ def get_local_rinexfile(rfile,localpath2):
                 fileops.gunzip(r + '.gz')
                 if os.path.exists(r):
                     print('copying RINEX file to local area')
-                    subprocess.call(['cp',r,'.'])
+                    fileops.copy(r, '.')
                     # now gzip the original file ...
                     fileops.gzip_file(r)
                     allgood = True; return allgood
@@ -1486,11 +1486,11 @@ def get_local_rinexfile(rfile,localpath2):
                 # and convert
                 print('found ', rdd)
                 print('copying Hatanaka file to local area')
-                subprocess.call(['cp',rdd,'.'])
+                fileops.copy(rdd, '.')
                 subprocess.call([crnxpath,rd])
                 if os.path.exists(rfile):
                     allgood = True
-                    subprocess.call(['rm',rd])
+                    fileops.remove(rd)
                     return allgood
 
     return allgood

@@ -6,7 +6,6 @@ import datetime
 import math
 import os
 import pickle
-import subprocess
 import sys
 import wget
 
@@ -14,6 +13,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 import gnssrefl.gps as g
+import gnssrefl.fileops as fileops
 
 
 def read_4by5(station, dlat,dlon,hell):
@@ -528,7 +528,7 @@ def look_for_pickle_file():
         pname =  'gnssrefl/gpt_1wA.pickle'
         print('2nd attempt: look in subdirectory of current working directory:', pname)
         if os.path.isfile(pname):
-            subprocess.call(['cp','-f',pname, fullpname  ])
+            fileops.copy(pname, fullpname)
             foundit = True
 
     if not foundit:
@@ -537,7 +537,7 @@ def look_for_pickle_file():
         if os.path.isfile(pname):
             foundit = True
             print('cp it to ', fullpname)
-            subprocess.call(['cp','-f',pname, fullpname])
+            fileops.copy(pname, fullpname)
         else:
             print('that did not work')
 

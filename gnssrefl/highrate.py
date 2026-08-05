@@ -87,7 +87,7 @@ def cddis_highrate(station, year, month, day,stream,dec_rate):
                 print('Found gzip/hatanaka file:', new_way_dir,file_name)
                 fileops.gunzip(file_name)
                 subprocess.call([crnxpath, crnx_name])
-                subprocess.call(['rm',crnx_name])
+                fileops.remove(crnx_name)
                 fileF = fileF + 1
             else:
                 print('Looking for:', new_way_dir,file_name)
@@ -97,20 +97,20 @@ def cddis_highrate(station, year, month, day,stream,dec_rate):
                         if os.path.isfile(file_name): 
                             fileops.gunzip(file_name)
                             subprocess.call([crnxpath, crnx_name])
-                            subprocess.call(['rm',crnx_name])
+                            fileops.remove(crnx_name)
                     if (version == 2):
                         if os.path.isfile(file_name):
                             subprocess.call([exe1,file_name])
                             subprocess.call([crnxpath, crnx_name])
-                            subprocess.call(['rm',crnx_name])
+                            fileops.remove(crnx_name)
                         else:
                             g.cddis_download_2022B(file_name2,new_way_dir)
                             subprocess.call([exe2,file_name2])
                             subprocess.call([crnxpath, crnx_name2])
-                            subprocess.call(['rm',crnx_name2])
+                            fileops.remove(crnx_name2)
                 except:
                     #print('Failure using cddis_download_2022B')
-                    subprocess.call(['rm','-f',file_name])
+                    fileops.remove(file_name)
 
                 if os.path.isfile(oname):
                     fileF = fileF + 1
@@ -136,11 +136,10 @@ def cddis_highrate(station, year, month, day,stream,dec_rate):
             subprocess.call([gfzpath,'-finp', searchpath, '-fout', tmpname, '-vo',str(version),'-sei','out','-smp',crate,'-f','-q'])
             s4=time.time()
 
-        cm = 'rm ' + searchpath 
         if os.path.isfile(tmpname): # clean up
             ok = 1
-            subprocess.call(cm,shell=True)
-            subprocess.call(['mv',tmpname,rinexname])
+            fileops.remove_glob(searchpath)
+            fileops.move(tmpname, rinexname)
             print('File created ', rinexname)
             fexist = True
 
@@ -299,7 +298,7 @@ def bkg_highrate(station, year, month, day,stream,dec_rate,bkg,**kwargs):
                     if os.path.isfile(file_name):
                         fileops.gunzip(file_name)  # unzip
                         subprocess.call([crnxpath, crnx_name]) # hatanaka
-                        subprocess.call(['rm',crnx_name]) # remove old file
+                        fileops.remove(crnx_name)  # remove old file
                 except:
                     okok = 1
                     print('Could not find ', file_name, ' at BKG')
@@ -320,16 +319,15 @@ def bkg_highrate(station, year, month, day,stream,dec_rate,bkg,**kwargs):
     if (fileF > 0):
         subprocess.call([gexe,'-finp', searchP, '-fout', outfile, '-vo','3', '-smp', crate, '-f','-q'])
         file_name24 = station.upper() + streamID + cyyyy + cdoy + '0000_01D_' + crate + 'S_MO.rnx'
-        subprocess.call(['mv',outfile, file_name24]) # remove old file
+        fileops.move(outfile, file_name24)  # remove old file
         fexist = True
 
     s2=time.time()
     print('That download and merging experience took ', int(s2-s1), ' seconds.')
 
     # remove 15 minute files
-    cm = 'rm ' + station.upper() + streamID + cyyyy + cdoy + '*15M_01S_MO.rnx'
     if fexist:
-        subprocess.call(cm,shell=True)
+        fileops.remove_glob(station.upper() + streamID + cyyyy + cdoy + '*15M_01S_MO.rnx')
 
     return file_name24,  fexist
 
@@ -410,7 +408,7 @@ def esp_highrate(station, year, month, day,stream,dec_rate):
                 g.replace_wget(dirname+file_name,file_name)
                 fileops.gunzip(file_name)  # gunzip
                 subprocess.call([crnxpath, crnx_name]) # hatanaka
-                subprocess.call(['rm',crnx_name]) # remove old file
+                fileops.remove(crnx_name)  # remove old file
             except:
                 okok = 1
             if os.path.isfile(oname):
@@ -432,16 +430,15 @@ def esp_highrate(station, year, month, day,stream,dec_rate):
     print(file_name24,outfile)
     if (fileF > 0):
         subprocess.call([gexe,'-finp', searchP, '-fout', outfile, '-vo','3', '-smp', crate, '-f','-q'])
-        subprocess.call(['mv',outfile, file_name24]) # remove old file
+        fileops.move(outfile, file_name24)  # remove old file
         fexist = True
 
     s2=time.time()
     print('That download and merging experience took ', int(s2-s1), ' seconds.')
 
     # remove one hour files
-    cm = 'rm ' + station.upper() + streamID + cyyyy + cdoy + '*01H_01S_MO.rnx'
     if fexist:
-        subprocess.call(cm,shell=True)
+        fileops.remove_glob(station.upper() + streamID + cyyyy + cdoy + '*01H_01S_MO.rnx')
 
     return file_name24,  fexist
 
@@ -515,14 +512,14 @@ def cddis_highrate_tar(station, year, month, day,stream,dec_rate):
             siz = os.path.getsize(file_name)
             if (siz == 0):
                 print('No tar file available at CDDIS')
-                subprocess.call(['rm', file_name])
+                fileops.remove(file_name)
                 fexist = False
                 rinexname = station.upper() + streamID + cyyyy + cdoy + '0000_01D_01S_MO.rnx'
                 return rinexname,  fexist
             else:
                 subprocess.call(['tar','-xf', file_name])
                 print('File exists ; remove the tar file')
-                subprocess.call(['rm', file_name])
+                fileops.remove(file_name)
         else:
             print('File does not exist')
             fexist = False
@@ -542,14 +539,14 @@ def cddis_highrate_tar(station, year, month, day,stream,dec_rate):
             oname = station.upper() + streamID + cyyyy + cdoy + ch + e + '_15M_01S_MO.rnx' # do we need this?
             if os.path.isfile(new_way_dir + oname):
                 #print('Found rnx file', oname)
-                subprocess.call(['mv',new_way_dir + oname, 'gnss/data'])
+                fileops.move(new_way_dir + oname, 'gnss/data')
                 fileF = fileF + 1
             elif os.path.isfile(new_way_dir + file_name):
                 #print('Found file:', new_way_dir,file_name)
                 fileops.gunzip(new_way_dir + file_name)
                 subprocess.call([crnxpath, new_way_dir + crnx_name])
-                subprocess.call(['rm',new_way_dir + crnx_name])
-                subprocess.call(['mv',new_way_dir + oname, 'gnss/data'])
+                fileops.remove(new_way_dir + crnx_name)
+                fileops.move(new_way_dir + oname, 'gnss/data')
                 if os.path.isfile('gnss/data/' + oname):
                     fileF = fileF + 1
             else:
@@ -569,11 +566,10 @@ def cddis_highrate_tar(station, year, month, day,stream,dec_rate):
             crate = str(dec_rate)
             subprocess.call([gfzpath,'-finp', searchpath, '-fout', tmpname, '-vo',str(version),'-sei','out','-smp',crate,'-f','-q'])
 
-        cm = 'rm ' + searchpath 
         if os.path.isfile(tmpname): # clean up
             ok = 1
-            subprocess.call(cm,shell=True)
-            subprocess.call(['mv',tmpname,rinexname])
+            fileops.remove_glob(searchpath)
+            fileops.move(tmpname, rinexname)
             print('File created ', rinexname)
             fexist = True
 
@@ -581,22 +577,18 @@ def cddis_highrate_tar(station, year, month, day,stream,dec_rate):
         #new_way_dir = 'gnss/data/highrate/' + cyyyy + '/' + cdoy + '/' + cyy + 'd/' + ch + '/'
         new_dir =      'gnss/data/highrate/' + cyyyy + '/' + cdoy + '/' + cyy + 'd/*'
         print('remove compressed 15 minute files')
-        cm = 'rm -rf ' + new_dir
-        subprocess.call(cm,shell=True)
+        fileops.remove_tree(new_dir)
 
         print('remove converted 15 minute files')
         searchpath = 'gnss/data/' + station.upper() + streamID + cyyyy + cdoy + '*.rnx'
-        cm = 'rm -rf ' + searchpath
-        subprocess.call(cm,shell=True)
+        fileops.remove_tree(searchpath)
 
         # remove junk from CDDIS
         searchpath = station.upper() + streamID + cyyyy + cdoy + '*.md5.txt'
-        cm = 'rm -rf ' + searchpath
-        subprocess.call(cm,shell=True)
+        fileops.remove_tree(searchpath)
 
         searchpath = station.upper() + streamID + cyyyy + cdoy + '*.sha512.txt'
-        cm = 'rm -rf ' + searchpath
-        subprocess.call(cm,shell=True)
+        fileops.remove_tree(searchpath)
 
     s2=time.time()
     print('That download/merge experience took ', int(s2-s1), ' seconds.')
@@ -688,13 +680,13 @@ def bkg_highrate_tar(station, year, month, day,stream,dec_rate,bkg):
                 fileF = fileF + 1
                 print('You already have ', oname, ' so no need to make it ')
                 if os.path.isfile(crnx_name):
-                    subprocess.call(['rm',crnx_name])  
+                    fileops.remove(crnx_name)
             else:
                 if os.path.isfile(crnx_name):
                     subprocess.call([crnxpath,crnx_name])  
                     if os.path.isfile(oname):
                         fileF = fileF + 1
-                        subprocess.call(['rm',crnx_name])  
+                        fileops.remove(crnx_name)
                 else:
                     print('File does not exist', oname)
 
@@ -719,13 +711,12 @@ def bkg_highrate_tar(station, year, month, day,stream,dec_rate,bkg):
             s2=time.time()
             print('That merging/decimating experience took ', int(s2-s1), ' seconds.')
             print('remove 15 minute files')
-            cm = 'rm ' + station.upper() + streamID + cyyyy + cdoy + '*15M_01S_MO.rnx'
-            subprocess.call(cm,shell=True)
+            fileops.remove_glob(station.upper() + streamID + cyyyy + cdoy + '*15M_01S_MO.rnx')
 
     if fexist:
         print('Now change the output name: ', file_name24)
-        subprocess.call(['mv', outfile, file_name24])
-        subprocess.call(['rm', file_name+'.tar'])
+        fileops.move(outfile, file_name24)
+        fileops.remove(file_name+'.tar')
     else:
         file_name24 = ''
 
@@ -809,7 +800,7 @@ def kadaster_highrate(station, year, doy,stream,dec_rate):
                         print('found crx')
                         fileops.gunzip(file_name)  # unzip
                         subprocess.call([crnxpath, crnx_name]) # hatanaka
-                        subprocess.call(['rm',crnx_name]) # remove old file
+                        fileops.remove(crnx_name)  # remove old file
                 except:
                     okok = 1
                     #print('Could not find ', file_name, ' at Kadaster')
@@ -832,12 +823,11 @@ def kadaster_highrate(station, year, doy,stream,dec_rate):
         print('Merging and decimating')
         subprocess.call([gexe,'-finp', searchP, '-fout', outfile, '-vo','3', '-smp', crate, '-f','-q'])
         file_name24 = station.upper() + streamID + cyyyy + cdoy + '0000_01D_' + crate + 'S_MO.rnx'
-        subprocess.call(['mv',outfile, file_name24]) # remove old file
+        fileops.move(outfile, file_name24)  # remove old file
         fexist = True
 
     # remove 15 minute files
-    cm = 'rm ' + station.upper() + streamID + cyyyy + cdoy + '*15M_01S_MO.rnx'
     if fexist:
-        subprocess.call(cm,shell=True)
+        fileops.remove_glob(station.upper() + streamID + cyyyy + cdoy + '*15M_01S_MO.rnx')
 
     return file_name24,  fexist

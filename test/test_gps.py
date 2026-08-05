@@ -1,4 +1,3 @@
-import subprocess
 from unittest import mock
 
 import os
@@ -39,14 +38,11 @@ def test_get_sopac_navfile_working(tmp_path, monkeypatch, mocker):
     assert not (tmp_path / "auto1050.20n.Z").exists()
 
 
-# this should be changed to run on january 1, 2021 which probably 
-# has a corrupt file on the sopac database
-def test_get_sopac_navfile_error(mocker):
-    mocker.patch("wget.download")
-    mocker.patch("os.path.exists")
-    mocker.patch("subprocess.call")
-    wget.download.side_effect = urllib.error.URLError("404")
-    os.path.exists.return_value = False
+def test_get_sopac_navfile_download_fails(tmp_path, monkeypatch, mocker):
+    """a download that never happens leaves nothing behind and does not raise"""
+    monkeypatch.chdir(tmp_path)
+    mocker.patch("wget.download", side_effect=urllib.error.URLError("404"))
+
     assert (
         get_sopac_navfile("p1031050.20.snr66", "2020", "20", "105")
         == "p1031050.20.snr66"  # should this return None instead?
@@ -55,11 +51,29 @@ def test_get_sopac_navfile_error(mocker):
         "ftp://garner.ucsd.edu/pub/rinex/2020/105/p1031050.20.snr66.Z",
         "p1031050.20.snr66.Z",
     )
-    os.path.exists.assert_called_once_with("p1031050.20.snr66")
-    assert subprocess.call.mock_calls == [
-        mock.call(["rm", "-f", "p1031050.20.snr66.Z"]),
-        mock.call(["rm", "-f", "p1031050.20.snr66"]),
-    ]
+    assert list(tmp_path.iterdir()) == []
+
+
+# this should be changed to run on january 1, 2021 which probably
+# has a corrupt file on the sopac database
+def test_get_sopac_navfile_corrupt_download(tmp_path, monkeypatch, mocker):
+    """
+    A download that arrives corrupt cannot be decompressed, so the partial file
+    is cleaned up. Asserting that the corpse is really gone tests more than the
+    old assertion on the argv of the rm did.
+    """
+    monkeypatch.chdir(tmp_path)
+
+    def download_a_corrupt_navfile(url, out):
+        Path(out).write_bytes(b"this is not LZW compressed data")
+
+    mocker.patch("wget.download", side_effect=download_a_corrupt_navfile)
+
+    assert (
+        get_sopac_navfile("p1031050.20.snr66", "2020", "20", "105")
+        == "p1031050.20.snr66"
+    )
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_store_snrfile_moves_across_filesystems(tmp_path):

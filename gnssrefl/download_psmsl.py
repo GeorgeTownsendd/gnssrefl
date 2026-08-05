@@ -10,6 +10,7 @@ import subprocess
 import urllib
 
 import gnssrefl.gps as g
+import gnssrefl.fileops as fileops
 
 #from gnssrefl.utils import validate_input_datatypes, str2bool
 
@@ -56,16 +57,16 @@ def download_psmsl(station: str, output: str = None, plt: bool = False):
 
     # remove old files 
     if os.path.exists(filename):
-        subprocess.call(['rm', '-f',filename])
+        fileops.remove(filename)
     if os.path.exists(cfilename):
-        subprocess.call(['rm', '-f',cfilename])
+        fileops.remove(cfilename)
 
     print('Pick up the files')
 
     try:
         urllib.request.urlretrieve(url, filename)
         subprocess.call(['unzip', filename])
-        subprocess.call(['rm', '-f', filename])
+        fileops.remove(filename)
         # this should produce a csv file - cfilename
     except:
         print('Some problem with the download. Perhaps the station does not exist')

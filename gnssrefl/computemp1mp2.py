@@ -178,9 +178,9 @@ def run_teqc(teqc,navfile,rinexfile,foutname,mpdir):
     subprocess.call(line)
     details = rinexfile[0:11] + 'S'
     print('SUCCESS: ',mpdir + '/' + details)
-    subprocess.call(['mv','-f',details,mpdir] )
+    fileops.move(details, mpdir)
     # clean up - remove rinex file
-    subprocess.call(['rm','-f',rinexfile] )
+    fileops.remove(rinexfile)
 
 def check_directories(station,year):
     """

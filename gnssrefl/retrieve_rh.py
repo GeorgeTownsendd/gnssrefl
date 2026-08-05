@@ -2,13 +2,13 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import subprocess
 import sys
 
 import gnssrefl.gnssir_v2 as guts
 import gnssrefl.gps as g
 from gnssrefl.gnss_frequencies import get_display_label
 from gnssrefl.utils import FileManagement, pre_check_arc, check_arc_quality, format_qc_summary
+import gnssrefl.fileops as fileops
 
 def retrieve_rh(station, year, doy, extension, station_config, arcs, screenstats, irefr, logid, logfilename, dbhz):
     """
@@ -244,7 +244,7 @@ def retrieve_rh(station, year, doy, extension, station_config, arcs, screenstats
         orgexist = lspname.is_file()
         print(lspname,orgexist)
         if orgexist:
-            subprocess.call(['rm', '-f', str(lspname)])
+            fileops.remove(str(lspname))
 
     failqc_path = FileManagement(station, 'gnssir_failqc_result', year, doy, extension=extension).get_file_path()
     ncols = 22 if longer_line else 17

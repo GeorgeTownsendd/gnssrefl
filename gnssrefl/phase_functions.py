@@ -3,7 +3,6 @@ import glob
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import subprocess
 import sys
 
 
@@ -20,6 +19,7 @@ from pathlib import Path
 
 from gnssrefl.utils import str2bool, read_files_in_dir
 from gnssrefl.gnss_frequencies import get_file_suffix, get_signal_label, get_display_label, get_wavelength
+import gnssrefl.fileops as fileops
 
 
 # Column schemas for the phase files. Writers build header/fmt from these
@@ -354,7 +354,7 @@ def make_snow_filter(station, medfilter, ReqTracks, year1, year2):
             print('Suspect Snow Day : ', int(newx[i,0]), int(newx[i,1]))
             snow.write("{0:4.0f}  {1:3.0f} {2:8.3f}  \n".format( newx[i,0], newx[i,1], sv))
         snow.close()
-    subprocess.call(['rm','-f',avgf])
+    fileops.remove(avgf)
     if os.path.exists(snowfile):
         snowmask_exists = True
     else:

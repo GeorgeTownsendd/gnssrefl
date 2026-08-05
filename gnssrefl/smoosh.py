@@ -5,6 +5,7 @@ import subprocess
 import sys
 
 import gnssrefl.gps as g
+import gnssrefl.fileops as fileops
 
 def main():
     """
@@ -59,8 +60,8 @@ def main():
     sig = 'S1,S2C,S2,S5,S6,S7'
     subprocess.call([gexe,'-finp', rinexfile, '-fout', rinexfile2, '-vo','2','-ot', sig, '-smp', crate, '-satsys',iall,'-f'])
     # move new file to original name
-    subprocess.call(['rm','-f', rinexfile])
-    subprocess.call(['mv','-f', rinexfile2, rinexfile])
+    fileops.remove(rinexfile)
+    fileops.move(rinexfile2, rinexfile)
 
 
 if __name__ == "__main__":

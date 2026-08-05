@@ -3,11 +3,11 @@
 """
 import argparse
 import os
-import subprocess
 import sys
 
 import gnssrefl.gps as g
 import gnssrefl.rinex2snr as r
+import gnssrefl.fileops as fileops
 
 
 def main():
@@ -101,7 +101,7 @@ def main():
 
     # clean up - remove the rinex2 file
     print('SNR file written to: ', snrname)
-    subprocess.call(['rm','-f',rinex2])
+    fileops.remove(rinex2)
 
 if __name__ == "__main__":
     main()

@@ -2,7 +2,6 @@ import warnings
 import argparse
 import contextlib
 import os
-import subprocess
 import sys
 import time
 import wget
@@ -16,6 +15,7 @@ import gnssrefl.gps as g
 import gnssrefl.refraction as refr
 
 from gnssrefl.utils import str2bool, expand_amplitudes
+import gnssrefl.fileops as fileops
 
 
 def parse_arguments():
@@ -387,12 +387,12 @@ def gnssir(station: str, year: int, doy: int, snr: int = 66, plt: bool = False, 
         local_copy = 'gnssrefl/' + picklefile
         if os.path.isfile(local_copy):
             print('found local copy of refraction file')
-            subprocess.call(['cp', '-f', local_copy, xdir + '/input/'])
+            fileops.copy(local_copy, xdir + '/input/')
         else:
             print('download and move refraction file')
             url='https://github.com/kristinemlarson/gnssrefl/raw/master/gnssrefl/gpt_1wA.pickle'
             wget.download(url, picklefile)
-            subprocess.call(['mv', '-f', picklefile, xdir + '/input/'])
+            fileops.move(picklefile, xdir + '/input/')
 
     # added debug aug 3/2024
     args = {'station': station.lower(), 'year': year, 'doy': doy, 'snr_type': snr, 'extension': extension, 'station_config': station_config, 'debug': debug}

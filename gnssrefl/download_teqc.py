@@ -8,7 +8,6 @@ can do multiple years as well
 """
 import argparse
 import os
-import subprocess
 import sys
 
 import wget
@@ -17,6 +16,7 @@ import gnssrefl.gps as g
 import gnssrefl.computemp1mp2 as veg
 # for downloads from unavco/earthscope
 import gnssrefl.kelly as kelly
+import gnssrefl.fileops as fileops
 
 
 
@@ -69,7 +69,7 @@ def mpfile_unavco(station, year, doy):
         print('Looking for: ', url)
         foundit,fname = kelly.the_kelly_simple_way(url,fname)
         if os.path.isfile(fname):
-           subprocess.call(['mv', fname, ddir])
+           fileops.move(fname, ddir)
            print('\n SUCCESS', ddir + '/' + fname)
 
 

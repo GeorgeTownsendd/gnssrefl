@@ -7,7 +7,6 @@ import pickle
 import urllib
 import os
 import sys
-import subprocess
 import urllib
 
 import gnssrefl.gps as g
@@ -92,7 +91,7 @@ def main():
     xdir = os.environ['REFL_CODE']
     if (args.overwrite == 'T') or (args.overwrite == 'True'):
         print('# Will remove existing file, if it exists locally, and will download a new one')
-        subprocess.call(['rm','-f','PRN_GPS'])
+        fileops.remove('PRN_GPS')
         download_prn_gps()
 
 

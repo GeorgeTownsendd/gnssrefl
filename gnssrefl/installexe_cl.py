@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 from shutil import which 
+import gnssrefl.fileops as fileops
 
 
 def newchip_gfzrnx(exedir):
@@ -28,7 +29,7 @@ def newchip_gfzrnx(exedir):
         wget.download(dfile, savename)
         os.chmod(savename,0o777)
         if os.path.exists(savename):
-            subprocess.call(['mv', '-f',savename, exedir])
+            fileops.move(savename, exedir)
     return
 
 def newchip_hatanaka(exedir):
@@ -67,8 +68,8 @@ def newchip_hatanaka(exedir):
             subprocess.call(['gcc', sourcefile, '-o', sourceexe])
         if os.path.exists(sourceexe):
             print('Hatanaka success - moving to EXE directory')
-            subprocess.call(['mv', '-f', sourceexe, finalpath])
-            subprocess.call(['rm', '-f', sourcefile])
+            fileops.move(sourceexe, finalpath)
+            fileops.remove(sourcefile)
         else:
             print('no Hatanaka success')
             sys.exit()
@@ -111,7 +112,7 @@ def download_chmod_move(url,savename,exedir):
     else:
         wget.download(url,savename)
         os.chmod(savename,0o777)
-        subprocess.call(['mv', '-f',savename, exedir])
+        fileops.move(savename, exedir)
         print('\n Executable stored:', savename)
 
 
@@ -180,8 +181,8 @@ def installexe(opsys: str):
             try:
                 wget.download(url, savename + '.zip')
                 subprocess.call(['unzip', savename + '.zip' ])
-                subprocess.call(['mv', '-f', savename, exedir])
-                subprocess.call(['rm', '-f', savename + '.zip' ])
+                fileops.move(savename, exedir)
+                fileops.remove(savename + '.zip')
                 print('\n Executable stored:', savename)
             except:
                 print('Some kind of kerfuffle trying to install teqc')
@@ -201,8 +202,8 @@ def installexe(opsys: str):
             try:
                 wget.download(url, savename + '.zip')
                 subprocess.call(['unzip', savename + '.zip' ])
-                subprocess.call(['mv', '-f', savename, exedir])
-                subprocess.call(['rm', '-f', savename + '.zip' ])
+                fileops.move(savename, exedir)
+                fileops.remove(savename + '.zip')
                 print('\n Executable stored:', savename)
             except:
                 print('Some kind of kerfuffle trying to install teqc')

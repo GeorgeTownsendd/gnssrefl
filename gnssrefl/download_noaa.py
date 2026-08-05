@@ -4,10 +4,10 @@ import datetime
 import numpy as np
 import os
 import requests
-import subprocess
 import sys
 import wget
 import gnssrefl.gps as g
+import gnssrefl.fileops as fileops
 
 #from gnssrefl.utils import validate_input_datatypes, str2bool
 
@@ -471,7 +471,7 @@ def download_qld(station,year,plt):
         g.quickp(station,obstimes,sl)
 
     # clean up - remove csv file
-    subprocess.call(['rm','-f',tmpfile])
+    fileops.remove(tmpfile)
 
 # this is more direct API call for last seven days ... I think 
 #urlL = 'https://www.data.qld.gov.au/api/3/action/datastore_search?resource_id=7afe7233-fae0-4024-bc98-3a72f05675bd'
