@@ -84,7 +84,7 @@ def write_spline_output(iyear, th, spline, delta_out, station, txtdir,Hortho):
         splinefileout =  txtdir + '/' + station + '_' + str(iyear) + '_spline_out_orig.txt'
         print('Writing evenly sampled file to: ', splinefileout)
         vn = ' gnssrefl v' + str(g.version('gnssrefl'))
-        fout = open(splinefileout,'w+')
+        fout = open(splinefileout,'w+', newline='\n')
         fout.write('{0:1s}  {1:30s}  \n'.format('%','station: ' + station + vn))
         fout.write('{0:1s}  {1:30s}  \n'.format('%','This is NOT observational data - be careful when interpreting it.'))
         fout.write('{0:1s}  {1:30s}  \n'.format('%','If the data are not well represented by the spline functions, you will '))
@@ -124,7 +124,7 @@ def testing_nvals(Gval, Rval, Eval, Cval):
     writes to a file - kristine.txt returns nothing
 
     """
-    fouting = open('kristine.txt','w+')
+    fouting = open('kristine.txt','w+', newline='\n')
     for i in range(0,len(Gval)):
         fouting.write(' {0:3.0f} {1:4.0f} {2:4.0f} {3:4.0f} {4:4.0f} \n'.format(i, Gval[i], Rval[i], Eval[i], Cval[i]))
     fouting.close()
@@ -560,7 +560,7 @@ def writeout_spline_outliers(tvd_bad,txtdir,residual,filename):
     if nr > 0:
         f = txtdir + '/' + filename
         print(nr, ' Outliers written to: ', f)
-        fout = open(f, 'w+')
+        fout = open(f, 'w+', newline='\n')
         # put in a header
         fout.write('{0:3s} sat azim deltT-min outlier-m fracDOY MJD       OrigRH meanE PkNoise Ampl Freq\n'.format('%'))
         fout.write('{0:3s} (1) (2)   (3)        (4)      (5)    (6)        (7)    (8)   (9)    (10) (11)\n'.format('%'))
@@ -606,7 +606,7 @@ def print_badpoints(t,outliersize,txtdir,real_residuals):
     f = txtdir + '/outliers.txt'
     if (m > 0):
         print(m, ' Outliers written to file: ', f)        
-        fout = open(f, 'w+')
+        fout = open(f, 'w+', newline='\n')
         for i in range(0,m):
             fout.write('doy {0:3.0f} sat {1:3.0f} azim {2:6.2f} fr {3:3.0f} pk2noise {4:5.1f} residual {5:5.2f} \n'.format( 
                 t[i,1], t[i,3],t[i,5], t[i,10], t[i,13], real_residuals[i] ))
@@ -1104,7 +1104,7 @@ def RH_ortho_plot2( station, H0, year,  txtdir, fs, time_rh, rh,
         H0 = float(H0[0][0]) # for now
 
     print('Writing evenly sampled file to: ', splinefileout)
-    fout = open(splinefileout,'w+')
+    fout = open(splinefileout,'w+', newline='\n')
     vn = station + ' gnssrefl v' + str(g.version('gnssrefl'))
     fout.write('{0:1s}  {1:30s}  \n'.format('%','station ' + vn))
     fout.write('{0:1s}  {1:60s}  \n'.format('%','TIME TAGS ARE IN UTC/999 values mean there was a large gap and no spline value is available.'))
@@ -1492,7 +1492,7 @@ def vary_Hortho( station, H0, year,  txtdir, fs, time_rh, rh,
 
 
     print('Writing evenly sampled file to: ', splinefileout)
-    fout = open(splinefileout,'w+')
+    fout = open(splinefileout,'w+', newline='\n')
     vn = station + ' gnssrefl v' + str(g.version('gnssrefl'))
     fout.write('{0:1s}  {1:30s}  \n'.format('%','station ' + vn))
     fout.write('{0:1s}  {1:60s}  \n'.format('%','TIME TAGS ARE IN UTC/999 values mean there was a large gap and no spline value is available.'))

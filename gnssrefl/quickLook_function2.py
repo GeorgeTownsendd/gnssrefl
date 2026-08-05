@@ -153,7 +153,7 @@ def quickLook_function(station, year, doy, snr_type,f,e1,e2,minH,maxH,reqAmp,pel
         # make output file for the quickLook RRH values, just so you can give them a quick look see
         # also used in the azimuth QC plot
         quicklog = logdir + '/rh_' + station + '.txt'
-        rhout = open(quicklog,'w+')
+        rhout = open(quicklog,'w+', newline='\n')
         amax = 0
         minEdataset = min(snrD[:,1])
         print('minimum elevation angle (degrees) for this dataset: ', minEdataset)

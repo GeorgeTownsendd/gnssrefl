@@ -811,7 +811,9 @@ def write_snr_from_nav(navfile,obstimes,observationdata,obslist,prntoidx,gpssatl
     a=obstimes
     if True:
         log.write('Opening output file for the SNR data \n')
-        fout = open(snrfile, 'w+')
+        # newline='\n' so that the explicit \n written below is not turned into
+        # \r\n on Windows. On Linux and macOS this changes nothing at all.
+        fout = open(snrfile, 'w+', newline='\n')
         K=len(obstimes)
         log.write('Number of epochs in the RINEX file {0:6.0f} \n '.format( K))
         log.write('Decimation rate {0:3.0f} \n'.format(dec_rate))
@@ -1128,7 +1130,7 @@ def write_snr_from_sp3(gpstime,sp3,systemsatlists,obsdata,obstypes,prntoidx,year
 
     if not out_blocks:
         log.write('write SNR data to file \n')
-        open(outputfile, 'w').close()
+        open(outputfile, 'w', newline='\n').close()
         return
 
     # sort by time-of-day, then by satellite number (matching Fortran output order)
@@ -1140,7 +1142,8 @@ def write_snr_from_sp3(gpstime,sp3,systemsatlists,obsdata,obstypes,prntoidx,year
     # write using Fortran-compatible format: i3, 2f10.4, f10.1, f10.6, f7.2, 5f7.2
     fmt = "%3.0f%10.4f%10.4f%10.1f%10.6f%7.2f%7.2f%7.2f%7.2f%7.2f%7.2f\n"
     rows = all_data[:, 1:].tolist()
-    with open(outputfile, 'w') as f:
+    # newline='\n' keeps the \n in fmt from becoming \r\n on Windows
+    with open(outputfile, 'w', newline='\n') as f:
         write = f.write
         for row in rows:
             write(fmt % tuple(row))

@@ -82,7 +82,7 @@ def download_noaa(station: str, date1: str, date2: str, output: str = None, plt:
         outfile = outdir + output
 
     print('Writing contents to: ', outfile)
-    fout = open(outfile, 'w+')
+    fout = open(outfile, 'w+', newline='\n')
     if csv:
         fout.write("{0:s} {1:s} \n".format('#', 'NOAA Station: ' + station ))
         fout.write("#YYYY,MM,DD,HH,MM, SS, Water(m),DOY,   MJD \n")
@@ -437,7 +437,7 @@ def download_qld(station,year,plt):
     os.makedirs(outdir, exist_ok=True)
     outfile = outdir + station + '_' + str(year) + '.txt'
 
-    fout = open(outfile, 'w+')
+    fout = open(outfile, 'w+', newline='\n')
     print('Queensland Tide file written to :', outfile)
 
     obstimes=[]

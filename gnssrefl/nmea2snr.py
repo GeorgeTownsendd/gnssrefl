@@ -307,7 +307,7 @@ def nmea_translate(locdir, fname, snrfile, csnr, dec, year, doy, recv, sp3, gzip
                                
     emin,emax = snr_elev_limits(int(csnr))#select snr option 50, 66, 88, 99
     #write to an output file 
-    with open(snrfile, 'w') as fout:
+    with open(snrfile, 'w', newline='\n') as fout:
         for i in range(len(T)):
             if (float(ELV[i]) >= emin) and (float(ELV[i]) <= emax):
                 

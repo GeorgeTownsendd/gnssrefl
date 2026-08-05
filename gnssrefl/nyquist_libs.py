@@ -158,7 +158,7 @@ def ny_plot(station,allN, info,hires_figs):
     print(txtfile)
     nr,nc = allN.shape
     N = len(allN)
-    fout = open(txtfile, 'w+')
+    fout = open(txtfile, 'w+', newline='\n')
     fout.write('{0:s}  {1:s} \n'.format('%', station + ' ' + info ))
     fout.write('{0:s}  {1:s} \n'.format('%', 'Maximum Resolvable Reflector Height' ))
     for i in range(0,N):

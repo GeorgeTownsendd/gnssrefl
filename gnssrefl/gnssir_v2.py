@@ -889,7 +889,7 @@ def open_gnssir_logfile(station,year,doy,extension):
 #   extra file with rejected arcs
 
     filename = logdir + cdoy + '_gnssir.txt' 
-    fileid = open(filename,'w+')
+    fileid = open(filename,'w+', newline='\n')
     v = str(g.version('gnssrefl'))
     fileid.write('gnssrefl version {0:s} \n'.format(v))
 

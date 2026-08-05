@@ -127,7 +127,7 @@ def download_ioc(station: str, date1: str, date2: str, output: str = None, plt: 
             print('No data. Could be station does not exist.  In any case, I am exiting')
             sys.exit()
 
-    fout = open(outfile,'w+')
+    fout = open(outfile,'w+', newline='\n')
     print('Writing IOC data to ', outfile)
 
 

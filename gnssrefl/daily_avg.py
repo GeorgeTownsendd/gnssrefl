@@ -192,7 +192,7 @@ def readin_plot_daily(station,extension,year1,year2,fr,alldatafile,csvformat,
     alldatafile2 = alldatafile + '.noqc'
     print(alldatafile2, '\n')
 
-    noqc = open(alldatafile2, 'w+')
+    noqc = open(alldatafile2, 'w+', newline='\n')
     # put in a header
     noqc.write(" {0:s}  \n".format('% NO QUALITY CONTROL AT ALL' ))
     noqc.write(" {0:s}  \n".format('% year,doy, RH(m),Mon, Day, Azim, freq,sat,LSPamp,pk2n,UTC(hr)' ))
@@ -201,7 +201,7 @@ def readin_plot_daily(station,extension,year1,year2,fr,alldatafile,csvformat,
 
     print('All RH retrievals that meet your median filter and ReqTracks criteria will be written to: ' )
     print(alldatafile, '\n')
-    allrh = open(alldatafile, 'w+')
+    allrh = open(alldatafile, 'w+', newline='\n')
     # put in a header
     allrh.write(" {0:s}  \n".format('% year,doy,RH(m),Mon,day, azim,freq,sat,LSPamp,pk2n,UTC(hr)' ))
     allrh.write(" {0:s}  \n".format('% (1), (2),(3), (4),(5),  (6), (7), (8), (9),  (10), (11)' ))

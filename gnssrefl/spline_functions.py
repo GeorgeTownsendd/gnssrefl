@@ -999,7 +999,7 @@ def snr2spline(station,year,doy, azilims, elvlims,rhlims, precision, kdt, snrfit
             ab = rh_arr
 
             print('invsnr lsp outliers written to : ', xdir + 'outliers_lsp.txt')
-            iiout = open(xdir + 'outliers_lsp.txt', 'w+')
+            iiout = open(xdir + 'outliers_lsp.txt', 'w+', newline='\n')
             for ijk in range(0,len(rh_arr)):
                 dd =  rh_arr[ijk,1]-spl_at_lsp[ijk]
                 if (abs(dd) > outlier_limit):
@@ -1094,7 +1094,7 @@ def invsnr_header(xdir, outfile_type,station,outfile_name):
         else:
             ioutputfile= outfile_name + '.txt'
 
-        iout = open(ioutputfile, 'w+')
+        iout = open(ioutputfile, 'w+', newline='\n')
         commentl = '%' # for now ... 
     else:
         usetxt = False; 
@@ -1103,7 +1103,7 @@ def invsnr_header(xdir, outfile_type,station,outfile_name):
         else:
             ioutputfile= outfile_name + '.csv'
 
-        iout = open(ioutputfile, 'w+')
+        iout = open(ioutputfile, 'w+', newline='\n')
         commentl = '%'
     print('invsnr output will be written to: ', ioutputfile)
     xxx = str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))

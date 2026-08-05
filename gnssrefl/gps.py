@@ -1840,7 +1840,7 @@ def open_outputfile(station,year,doy,extension):
     #versionNumber = 'working-on-it'
     tem = '% station ' + station + ' https://github.com/kristinemlarson/gnssrefl ' + versionNumber  + '\n'
     try:
-        fout=open(filepath1,'w+')
+        fout=open(filepath1,'w+', newline='\n')
 #       put a header in the output file
         fout.write(tem)
         fout.write("% Phase Center corrections have NOT been applied \n")
@@ -1856,7 +1856,7 @@ def open_outputfile(station,year,doy,extension):
         os.makedirs(f2, exist_ok=True)
         # os.system(cm)
         try:
-            fout=open(filepath1,'w+')
+            fout=open(filepath1,'w+', newline='\n')
             print('successful open')
         except:
             print('problems opening the file')
@@ -4628,7 +4628,7 @@ def read_simon_williams(filename,outfilename):
 
     """
 
-    fout = open(outfilename,'w+')
+    fout = open(outfilename,'w+', newline='\n')
     print('Writing PSMSL GNSS-IR data to ', outfilename)
     csv = False
     if outfilename[-3:] == 'csv':

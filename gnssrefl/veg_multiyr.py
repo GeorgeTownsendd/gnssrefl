@@ -28,7 +28,7 @@ def writeout_one_year(station, year,rcvtype):
         k=len(data)
         return k, data, vegreceiver
     else:
-        vegid = open(fileout, 'w+')
+        vegid = open(fileout, 'w+', newline='\n')
 
     endv = g.dec31(year) + 1
     k=0

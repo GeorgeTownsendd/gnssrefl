@@ -81,7 +81,7 @@ def writeout_snowdepth_v0(station,outputfile, usegps, snowAccum,yerr):
         datetime useful for plotting
 
     """
-    fout = open(outputfile, 'w+')
+    fout = open(outputfile, 'w+', newline='\n')
     line1 = '% snow depth for station ' + station
     line2 = '% year   doy  snowD(m) Std(m) Month Day   Nvals'
     line3 = '%  (1)   (2)    (3)     (4)   (5)   (6)    (7)'
@@ -147,7 +147,7 @@ def writeout_azim(station, outputfile,usegps,snowAccum):
 # make a datetime array for plotting the gps results
     gobst = np.empty(shape=[0, 1])
     # open file and make a header
-    fout = open(outputfile, 'w+')
+    fout = open(outputfile, 'w+', newline='\n')
     line0 = '% gnssrefl snow depth for station ' + station
     #line1 = '% values < 0.05 meters set to zero. bare soil based on azimuth averages.'
     line2 = '% year   doy  snowD(m) Std(m) Month Day   Nvals'

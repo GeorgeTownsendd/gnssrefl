@@ -71,7 +71,7 @@ def download_wsv(station: str, plt: bool = True, output: str = None):
 
     # open the file
     print('File written to :', outfile)
-    fout = open(outfile,'w+')
+    fout = open(outfile,'w+', newline='\n')
     fout.write("{0:s} \n".format('%' + ' WSV Station: ' + station ))
     fout.write("%YYYY MM DD  HH MM SS  Water(m) DOY  MJD     \n")
     fout.write("% 1   2  3   4  5  6     7      8     9  \n")

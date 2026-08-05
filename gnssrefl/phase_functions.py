@@ -148,7 +148,7 @@ def write_track_file(track_dir, station, sat_num, avg_az, rows,
         f"% (1)  (2)  (3)   (4)  (5)    (6)       (7)        (8)     (9)       (10)         (11)       (12)        (13)      (14)       (15)         (16)       (17)"
     ])
 
-    with open(track_file, 'w') as f:
+    with open(track_file, 'w', newline='\n') as f:
         for line in header_lines:
             f.write(line + '\n')
         for r in rows:
@@ -348,7 +348,7 @@ def make_snow_filter(station, medfilter, ReqTracks, year1, year2):
     newx = x[ii,:] ; N=len(newx)
     if (N > 0):
         print('Suspect snow values stored in : ', snowfile)
-        snow = open(snowfile, 'w+')
+        snow = open(snowfile, 'w+', newline='\n')
         for i in range(0,N):
             sv = -(newx[i,2]-medianvalue)
             print('Suspect Snow Day : ', int(newx[i,0]), int(newx[i,1]))
@@ -504,7 +504,7 @@ def write_vwc_output(station, vwc_data, year, fr, bin_hours, bin_offset,
 
     print(f'VWC results being written to {vwcfile}')
 
-    with open(vwcfile, 'w') as w:
+    with open(vwcfile, 'w', newline='\n') as w:
         N = len(vwc_values)
         freq_name = get_display_label(fr)
 
@@ -582,7 +582,7 @@ def write_rolling_vwc_output(station, vwc_data, fr, bin_hours, extension='', veg
 
     print(f'Rolling VWC results being written to {vwcfile}')
 
-    with open(vwcfile, 'w') as w:
+    with open(vwcfile, 'w', newline='\n') as w:
         N = len(vwc_values)
         freq_name = get_display_label(fr)
 
@@ -695,7 +695,7 @@ def write_apriori_rh(filepath, tracks, station, year, tmin, tmax):
     # sort by track average azimuth and renumber
     tracks = [[i+1] + t[1:] for i, t in enumerate(sorted(tracks, key=lambda t: t[3]))]
 
-    with open(filepath, 'w') as f:
+    with open(filepath, 'w', newline='\n') as f:
         f.write('% apriori RH values used for phase estimation  \n')
         f.write(f'% year/station {year} {station}  \n')
         f.write(f'% tmin {tmin:.2f}  \n')
@@ -1434,7 +1434,7 @@ def write_avg_phase(station, fr, avg_phase, extension='', bin_hours=24, bin_offs
     else:
         print('Daily averaged phases will be written to : ', fileout)
 
-    with open(fileout, 'w') as fout:
+    with open(fileout, 'w', newline='\n') as fout:
         freq_name = get_display_label(fr)
         fout.write(f"% {freq_name} phase results for station {station.upper()}\n")
 
@@ -2132,7 +2132,7 @@ def write_all_phase(v,fname):
     ii = np.argsort(v[:,0] + v[:,1]/365.25)
     v = v[ii,:]
 
-    with open(fname, 'w') as my_file:
+    with open(fname, 'w', newline='\n') as my_file:
         np.savetxt(my_file, [], header=header1, comments='%')
         #np.savetxt(my_file, [], header=header2, comments='%')
     #result = [[year, doy, utctime, phase, nv, avg_azim, sat_number, amp, min_el, max_el, del_t, rh_apriori, freq, max_f, obs_pk2noise, max_amp]]

@@ -440,7 +440,7 @@ def readWrite_gpt2_1w(xdir, station, site_lat, site_lon):
         w = 0
 # need to write values for a given station to a plain text file
 #
-        fout = open(outfile, 'w+')
+        fout = open(outfile, 'w+', newline='\n')
         for a in indx_list:
             for k in [0,1,2,3,4]:
                 fout.write(" {0:4.0f} {1:5.0f} {2:13.4f} {3:10.4f} {4:10.6f} {5:10.4f} {6:12.5f} {7:12.5f} {8:10.6f} {9:10.6f} {10:10.6f} {11:10.4f} \n".format( indx_lat[w], indx_lon[w],All_pgrid[a,k],All_Tgrid[a,k],All_Qgrid[a,k]*1000,All_dTgrid[a,k]*1000,All_U[a,0],All_Hs[a,0], All_ahgrid[a,k]*1000, All_awgrid[a,k]*1000, All_lagrid[a,k], All_Tmgrid[a,k] ))

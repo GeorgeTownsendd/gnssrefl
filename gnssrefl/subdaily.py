@@ -143,10 +143,10 @@ def write_subdaily(outfile,station,ntv,csv,extraline,**kwargs):
             csv_outfile = outfile + '.csv'
 
         print('Opening this as well ', csv_outfile)
-        fout_csv = open(csv_outfile, 'w+')
+        fout_csv = open(csv_outfile, 'w+', newline='\n')
 
     # everyone gets a plain txt file
-    fout = open(outfile, 'w+')
+    fout = open(outfile, 'w+', newline='\n')
 
     if extra:
         write_out_header(fout,station,extraline,extra_columns=True)
